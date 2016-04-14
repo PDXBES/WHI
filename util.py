@@ -15,24 +15,28 @@ output_dir = os.path.curdir
 def archive(input):
 
     # create new geodatabse
-    archive_gdb = arcpy.CreateFileGDB_management(config.archive_loc, "WHI_archive_" +  datetime.datetime.now().strftime('%Y%m%d'))
+    archive_gdb = "WHI_archive_" +  datetime.datetime.now().strftime('%Y%m%d')
+    if arcpy.Exists(archive_gdb) == False:
+        arcpy.CreateFileGDB_management(config.archive_loc, archive_gdb)
 
     # copy input files into geodatabase
+
     # vector sources
     for fc in config.vect_archive_list:
         if arcpy.Exists(fc) == True:
             arcpy.FeatureClassToGeodatabase_conversion(config.vect_archive_list, archive_gdb)
+            return
         else:
-            return str(table) + " not found"
+            return str(fc) + " not found"
 
     #raster sources
     for fc in config.rast_archive_list:
         if arcy.Exists(fc) == True:
             arcpy.RasterToGeodatabase_conversion(config.rast_archive_list, archive_gdb)
         else:
-            return str(table) + " not found"
+            return str(fc) + " not found"
 
-    #copy result tables into archive - CURRENTLY SET TO WORK FOR TABLES ONLY
+    #copy result tables into archive - CURRENTLY SET TO WORK FOR TABLES ONLY - EITHER ADD PIECE FOR FCs OR MAKE THEM ALL TABLES
     arcpy.env.workspace = config.primary_output
     tables = arcpy.ListTables()
     arcpy.TableToGeodatabase_conversion(tables, archive_gdb)
@@ -69,6 +73,18 @@ def addShape_Area(inputFC):
         print "added and calculated Shape_Area"
     else:
         print "Shape_Area already exists"
+
+def convertTo_table(input_fc):
+    desc = arcpy.Describe(input_fc)
+    if desc.dataElementType <> 'DETable':
+        # make Table view
+        table_view = arcpy.MakeTableView_management(input_fc, "in_memory" + r"\table_view")
+        # table to table - put in temp
+        temp = arcpy.TableToTable_conversion(table_view,config.temp_gdb,desc.basename)
+        # delete original
+        arcpy.Delete_management(input_fc)
+        # table to table - put back in final output location
+        arcpy.TableToGeodatabase_conversion(temp,config.primary_output)
 
 def main():
     pass

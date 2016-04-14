@@ -55,7 +55,7 @@ def ripIntegrity_score(pcnt_canopy,crossNum):
 
     ripcanopy = pcnt_canopy * 0.1
     crossings = 12 - (crossNum * 2)
-    if ripcan < crossings:
+    if ripcanopy < crossings:
         return ripcanopy
     else:
         return crossings
