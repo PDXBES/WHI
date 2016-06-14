@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 # Name:        WHI_modules
-# Purpose:
+# Purpose:     Primary function set
 #
 # Author:      DASHNEY
 #
@@ -18,7 +18,9 @@ arcpy.env.overwriteOutput = True
 def sumBy(inputFC, sectFC, groupby_list, sum_field, output):
     # intersects two feature classes then dissolves them by specified field and aggregation values
     # groupby_list can be a list of one
+    util.log("   sumBy - intersecting")
     intersect = arcpy.Intersect_analysis([inputFC , sectFC],config.temp_gdb + r"\sect","NO_FID","#","INPUT")
+    util.log("   sumBy - dissolving")
     arcpy.Dissolve_management(intersect,output,groupby_list,sum_field,"MULTI_PART","DISSOLVE_LINES")
 
 def rename_fields(table, out_table, new_name_by_old_name):
@@ -140,6 +142,7 @@ def sqFoot_calc(input):
 # main functions
 
 def EIA():
+    # Effective Impervious Area
 
     # !!! Q - clip all managed ImpA (coming from geometry) to mapped ImpA?  - if not might extend beyond mapped
 
@@ -156,22 +159,28 @@ def EIA():
 
     # create mapped ImpA by subwatershed
     util.log("Creating mapped ImpA")
-    ImpA_cityclip = arcpy.Clip_analysis(config.ImpA,config.city_bound, "in_memory" + r"\ImpA_cityclip")
-    ImpA_BMPclip = arcpy.Clip_analysis(ImpA_cityclip, ponds_swales , "in_memory" + r"\ImpA_BMPclip")
+    # intersect bonks on multipart
+    util.log("...converting multipart ImpA to singlepart")
+    ImpA_single = arcpy.MultipartToSinglepart_management(config.ImpA, "in_memory\ImpA_single")
+    util.log("...clipping ImpA to city boundary")
+    ImpA_cityclip = arcpy.Clip_analysis(ImpA_single,config.city_bound, "in_memory" + r"\ImpA_cityclip")
+    #ImpA_BMPclip = arcpy.Clip_analysis(ImpA_cityclip, ponds_swales , "in_memory" + r"\ImpA_BMPclip")
     ImpA_output = "in_memory" + r"\ImpA_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Area SUM"
-    sumBy(ImpA_BMPclip, config.subwatersheds, groupby_list, sum_field, ImpA_output)
+    sumBy(ImpA_cityclip, config.subwatersheds, groupby_list, sum_field, ImpA_output)
+
     MIA_old = "SUM_Shape_Area"
     MIA_new = 'MIA_Area'
     old_new = {MIA_old : MIA_new}
     MIA_output_new = config.temp_gdb + r"\MIA"
     rename_fields(ImpA_output, MIA_output_new ,old_new)
 
-    # create managed ImpA by subwatershed
+    # create managed ImpA by subwatershed - for each input
     util.log("Creating managed ImpA ...")
 
     util.log("... green street piece")
+    # uses global, assumed  value of 3500 sqft
     aa_field = "assumed_area"
     arcpy.AddField_management(green_streets, aa_field, "LONG")
     with arcpy.da.UpdateCursor(green_streets, aa_field) as rows:
@@ -189,11 +198,14 @@ def EIA():
     rename_fields(gs_output,gs_output_new , old_new)
 
     util.log("... BMP managed ImpA piece")
+    # clip delineations to the mapped impervious area (which is already clipped to the city boundary)
+    util.log("clipping BMP basins to ImpA bounds")
+    BMP_ImpAclip = arcpy.Clip_analysis(ponds_swales,ImpA_cityclip, "in_memory" + r"\BMP_ImpAclip")
+
     BMP_output = "in_memory" + r"\bmp_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Area SUM"
-    BMP_cityclip = arcpy.Clip_analysis(ponds_swales,config.city_bound, "in_memory" + r"\BMP_cityclip")
-    sumBy(BMP_cityclip, config.subwatersheds,groupby_list,sum_field, BMP_output)
+    sumBy(BMP_ImpAclip, config.subwatersheds, groupby_list, sum_field, BMP_output)
     BMP_old = "SUM_Shape_Area"
     BMP_new = 'BMP_Area'
     old_new = {BMP_old : BMP_new}
@@ -201,10 +213,13 @@ def EIA():
     rename_fields(BMP_output , BMP_output_new , old_new)
 
     util.log("... sumped area piece")
+    # clip delineations to the mapped impervious area (which is already clipped to the city boundary)
+    util.log("clipping sump basins to ImpA bounds")
+    sump_clip = arcpy.Clip_analysis(config.sump_delin, ImpA_cityclip, "in_memory" + r"\sump_ImpAclip")
+
     sump_output = "in_memory" + r"\sump_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Area SUM"
-    sump_clip = arcpy.Clip_analysis(config.ImpA,config.sump_delin, "in_memory" + r"\ImpA_sumpclip")
     sumBy(sump_clip, config.subwatersheds,groupby_list,sum_field, sump_output)
     sumps_old = "SUM_Shape_Area"
     sumps_new = 'Sump_Area'
@@ -224,7 +239,7 @@ def EIA():
     rename_fields(roof_output , roof_output_new , old_new)
 
     util.log("... private SMF piece")
-    smf_output = config.temp_gdb + r"\smf_diss"
+    # pulls sqft value from dictionary and assigns based on facility type
     smf_field = "assumed_value"
     arcpy.AddField_management(private_SMF, smf_field, "DOUBLE")
     keylist = []
@@ -236,7 +251,7 @@ def EIA():
                 row[1] = config.smf_dict[str(row[0]).strip()]
                 rows.updateRow(row)
 
-    # this block removes records where the Code field did not match a key from config.smf_dict
+    # this block removes records where the Code field did not match a key from config.smf_dict ie excludes any types we don't want
     util.log("Cleaning up Code field")
     with arcpy.da.UpdateCursor(private_SMF,smf_field) as rows:
         for row in rows:
@@ -244,6 +259,7 @@ def EIA():
                 rows.deleteRow()
 
     util.log("Renaming fields")
+    smf_output = config.temp_gdb + r"\smf_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "assumed_value SUM"
     sumBy(private_SMF,config.subwatersheds,groupby_list,sum_field,smf_output)
@@ -259,7 +275,7 @@ def EIA():
     new_subwsheds = "in_memory" + r"\subwatersheds"
     rename_fields(config.subwatersheds, new_subwsheds ,old_new)
 
-    # sum area values of the managed ImpA inputs
+    # combine area fields into one location for calculation
     util.log("Adding  area fields to the private SMF output")
     join_field = "WATERSHED"
     arcpy.JoinField_management(EIA_final,join_field,gs_output_new,join_field,greenstreet_new)
@@ -269,7 +285,7 @@ def EIA():
     arcpy.JoinField_management(EIA_final,join_field,MIA_output_new,join_field,MIA_new)
     arcpy.JoinField_management(EIA_final,join_field,new_subwsheds,join_field,subwshed_new)
 
-    # calc all numeric field Null values to 0 so that fields calculate correctly
+    # calc all numeric field Null values to 0 so that fields calculate correctly (calcs bonk with Nulls)
     util.log("Finding and calculating all Null values to 0")
     NullNumber_toZero(EIA_final)
 
@@ -278,7 +294,7 @@ def EIA():
     arcpy.AddField_management(EIA_final, "Pcnt_EIA", "DOUBLE")
     with arcpy.da.UpdateCursor(EIA_final, ["Pcnt_EIA", greenstreet_new , BMP_new , sumps_new , ecoroof_new , SMF_new , MIA_new ,subwshed_new]) as rows:
         for row in rows:
-            row[0] = (row[6]- row[1]+row[2]+row[3]+row[4]+row[5])/row[7]*100
+            row[0] = (row[6]- (row[1]+row[2]+row[3]+row[4]+row[5]))/row[7]*100
             rows.updateRow(row)
 
     # convert values in Pcnt EIA field to WHI codes (new field)
@@ -292,7 +308,7 @@ def EIA():
     util.log("Cleaning up")
     arcpy.Delete_management("in_memory")
 
-    # convert output to table if needed
+    # convert output to table
     util.convertTo_table(EIA_final)
 
     util.log("Module complete ---------------------------------------------------------------")
@@ -313,7 +329,7 @@ def streamConn():
     util.log("Prepping stream subset")
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Length SUM"
-    piped_byWshed = config.primary_output + r"\streamConn_final"
+    piped_byWshed = config.temp_gdb + r"\streamConn_final"
     sumBy(streams_sub, config.subwatersheds,groupby_list, sum_field, piped_byWshed)
 
     # intersect and group full set
@@ -353,6 +369,7 @@ def streamConn():
     arcpy.Delete_management("in_memory")
 
     # convert output to table if needed
+    util.log("Copying result to table")
     util.convertTo_table(piped_byWshed)
 
     util.log("Module complete ---------------------------------------------------------------")
@@ -391,28 +408,43 @@ def treeCanopy():
     arcpy.RepairGeometry_management(city_union)
     arcpy.RepairGeometry_management(city_union)
 
-    util.log ("Intersecting DSCs and landcover")
-    # THIS INTERSECT TAKES ABOUT 15 MINUTES OR IT MAY FAIL DUE TO MEMORY ISSUES WHICH IS WHY TREECANOPY IS RUN FIRST
-    in_features = [config.canopy_combo_vect,city_union]
-    sect_result = arcpy.Intersect_analysis(in_features, config.temp_gdb + r"\sect_result","NO_FID","","INPUT")
+    # chop up the canopy and intersect with the DSCs to get the zoning attached
+    sect_result = util.fishnetChop(city_union)
 
     util.log("Creating summary table")
     summary = arcpy.Statistics_analysis(sect_result,config.temp_gdb + r"\canopy_summary_table","Shape_Area SUM", "WATERSHED;gridcode;GenEX")
 
     util.log("Creating pivot table")
-    treeCanopy_final = arcpy.PivotTable_management(summary,"WATERSHED;GenEX","gridcode","SUM_Shape_Area", config.primary_output + r"\treeCanopy_final")
+    treeCanopy = arcpy.PivotTable_management(summary,"WATERSHED;GenEX","gridcode","SUM_Shape_Area", config.primary_output + r"\treeCanopy")
 
     # create and populate square footage for each landcover type
-    sqFoot_calc(treeCanopy_final)
+    sqFoot_calc(treeCanopy)
 
     # need to attach original wshed geometry to get total Shape_Area
-    arcpy.JoinField_management(treeCanopy_final,"WATERSHED",config.subwatersheds,"WATERSHED","Shape_Area")
+    arcpy.JoinField_management(treeCanopy,"WATERSHED",config.subwatersheds,"WATERSHED","Shape_Area")
+
+    # Calculate % canopy per subwatershed - this is for the result broken out by zoning
+    util.log("Calc % vegetation")
+    rate_field = "Pcnt_canopy"
+    arcpy.AddField_management(treeCanopy,rate_field,"Double")
+    cursor_fields = ["Built","Low_Med","High",rate_field] # Water is NOT included in final calculation
+    with arcpy.da.UpdateCursor(treeCanopy,cursor_fields) as rows:
+                for row in rows:
+                    row[3] = (row[2]/(row[0]+row[1]+row[2]))*100
+                    rows.updateRow(row)
+
+    util.log("Cleanup")
+    remove_fields = [field.name for field in arcpy.ListFields(treeCanopy,"gridcode*")]
+    arcpy.DeleteField_management(treeCanopy,remove_fields)
+
+    # group result by subwatershed
+    treeCanopy_final = arcpy.Statistics_analysis(treeCanopy,config.primary_output + r"\treeCanopy_final","Built SUM; Low_Med SUM; High SUM", "WATERSHED")
 
     # Calculate % canopy per subwatershed
     util.log("Calc % vegetation")
     rate_field = "Pcnt_canopy"
     arcpy.AddField_management(treeCanopy_final,rate_field,"Double")
-    cursor_fields = ["Built","Low_Med","High",rate_field] # Water is NOT included in final calculation
+    cursor_fields = ["SUM_Built","SUM_Low_Med","SUM_High",rate_field] # Water is NOT included in final calculation
     with arcpy.da.UpdateCursor(treeCanopy_final,cursor_fields) as rows:
                 for row in rows:
                     row[3] = (row[2]/(row[0]+row[1]+row[2]))*100
@@ -426,15 +458,8 @@ def treeCanopy():
             row[1] = calc.canopy_scores(row[0])
             rows.updateRow(row)
 
-    util.log("Cleanup")
-    remove_fields = [field.name for field in arcpy.ListFields(treeCanopy_final,"gridcode*")]
-    arcpy.DeleteField_management(treeCanopy_final,remove_fields)
-
     util.log("Cleaning up")
     arcpy.Delete_management("in_memory")
-
-    # convert output to table if needed
-    util.convertTo_table(treeCanopy_final)
 
     util.log("Module complete ---------------------------------------------------------------")
 
@@ -503,11 +528,9 @@ def shallowWaterRef():
     util.log("Clipping depth raster to EDT reach extent")
     arcpy.CheckOutExtension("Spatial")
     # WAS GOING TO USE EXTRACT BY MASK HERE BUT IT WAS HAVING ISSUES - CLIP IS FASTER ANYWAY
-    desc = arcpy.Describe(reach_diss)
-    extent = desc.extent
-    depth_clip = arcpy.Clip_management(config.river_depth,extent,config.temp_gdb + r"\depth_clip",reach_diss,"-3.402823e+038","ClippingGeometry","NO_MAINTAIN_EXTENT")
-
-    #doc at #5 says convert raster to Int but I'll leave it for now
+    #desc = arcpy.Describe(reach_diss)
+    #extent = desc.extent
+    depth_clip = arcpy.Clip_management(config.river_depth,"#",config.temp_gdb + r"\depth_clip",reach_diss,"-3.402823e+038","ClippingGeometry","NO_MAINTAIN_EXTENT")
 
     util.log("Converting depth raster to positive values and adjusting to ordinary low water mark")
     depth_raster = arcpy.sa.Raster(depth_clip)
@@ -525,7 +548,7 @@ def shallowWaterRef():
 
     #convert to polygon
     util.log("Conveting raster to polygon")
-    shallow_vect = arcpy.RasterToPolygon_conversion(raster_reclass,config.temp_gdb + r"\veg_vect")
+    shallow_vect = arcpy.RasterToPolygon_conversion(raster_reclass,config.temp_gdb + r"\shallow_vect")
 
     #summarize data
     util.log("Creating summary table")
@@ -570,9 +593,6 @@ def shallowWaterRef():
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 def streamAccess():
-    # major concern with this module: stream accesibily polylines created by SciFiWi are based on older geometry
-    # which introduces an inconsistency when comparing "accessible" length to total length
-    # Chris Prescott is going to work on updating this source (3/24/2016)
 
     util.log("Starting streamAccess module")
 
@@ -581,9 +601,14 @@ def streamAccess():
     in_features = [config.streams,config.subwatersheds]
     streams_sect = arcpy.Intersect_analysis(in_features,"in_memory" + r"\streams_sect","NO_FID")
 
+    #intersect city streams with accessiblity polygons
+    util.log("Intersecting city streams with accessibility polygons")
+    in_features = [streams_sect, config.stream_access_poly]
+    accesspoly_sect = arcpy.Intersect_analysis(in_features,"in_memory" + r"\accesspoly_sect","NO_FID","#","LINE")
+
     # intersect accessible streams with subwatersheds
     util.log("Intersecting stream accessibility with subwatersheds")
-    in_features = [config.stream_access, config.subwatersheds]
+    in_features = [accesspoly_sect, config.subwatersheds]
     access_sect = arcpy.Intersect_analysis(in_features,config.temp_gdb + r"\access_sect","NO_FID")
 
     # add field to define access values which more explicitly align with output
@@ -595,10 +620,12 @@ def streamAccess():
     field_list = ["Curr_Acc","Hist_Acc","Status"]
     with arcpy.da.UpdateCursor(access_sect,field_list) as rows:
         for row in rows:
-            if row[0] == "n" and row[1] == "":
+            if row[0] == "n" and row[1] is None:
                 row[2] ="Hist_Innacessible"
             elif row[0] == "n" and row[1] == "n":
                 row[2] = "Hist_Innacessible"
+            elif row[0] == "n" and row[1] == "y":
+                row[2] = "Hist_Accessible"
             elif row[0] == "p":
                 row[2] = "Curr_Partial"
             elif row[0] == "y":
@@ -608,7 +635,7 @@ def streamAccess():
             rows.updateRow(row)
 
     #summarize data
-    util.log("Creating summary table for streams")
+    util.log("Creating summary table for all streams")
     streams_summary = arcpy.Statistics_analysis(streams_sect,config.temp_gdb + r"\streams_summary_table","Shape_Leng SUM", "WATERSHED")
     arcpy.AddField_management(streams_summary,"WSHED_TOTAL_LEN","DOUBLE")
 
@@ -619,32 +646,32 @@ def streamAccess():
             rows.updateRow(row)
 
     util.log("Creating summary table for accessible streams")
-    access_summary = arcpy.Statistics_analysis(access_sect,config.temp_gdb + r"\access_summary_table","Shape_Leng SUM", "WATERSHED_1;Status")
+    access_summary = arcpy.Statistics_analysis(access_sect,config.temp_gdb + r"\access_summary_table","Shape_Leng SUM", "WATERSHED;Status")
 
     # pivot info
     util.log("Creating pivot table")
-    access_final = arcpy.PivotTable_management(access_summary, "WATERSHED_1", "Status", "SUM_Shape_Leng", config.primary_output + r"\access_final")
+    access_final = arcpy.PivotTable_management(access_summary, "WATERSHED", "Status", "SUM_Shape_Leng", config.primary_output + r"\access_final")
 
     util.log("Adding Shape Length from city streams")
-    arcpy.JoinField_management(access_final,"WATERSHED_1",streams_summary,"WATERSHED","WSHED_TOTAL_LEN")
+    arcpy.JoinField_management(access_final,"WATERSHED",streams_summary,"WATERSHED","WSHED_TOTAL_LEN")
 
     # calculate % values
     util.log("Calc % fully accessible")
     rate_field1 = "Pcnt_Full_Access"
     arcpy.AddField_management(access_final,rate_field1,"Double")
-    cursor_fields = ["Curr_Full", "Curr_Partial", "Hist_Innacessible","WSHED_TOTAL_LEN", rate_field1]
+    cursor_fields = ["Curr_Full", "Curr_Partial", "Hist_Accessible", rate_field1]
     with arcpy.da.UpdateCursor(access_final,cursor_fields) as rows:
                 for row in rows:
-                    row[4] = row[0]/(row[3]-row[2])
+                    row[3] = row[0]/row[2]
                     rows.updateRow(row)
 
     util.log("Calc % partially accessible")
     rate_field2 = "Pcnt_Partial_Access"
     arcpy.AddField_management(access_final,rate_field2,"Double")
-    cursor_fields = ["Curr_Full", "Curr_Partial", "Hist_Innacessible","WSHED_TOTAL_LEN", rate_field2]
+    cursor_fields = ["Curr_Full", "Curr_Partial", "Hist_Accessible", rate_field2]
     with arcpy.da.UpdateCursor(access_final,cursor_fields) as rows:
                 for row in rows:
-                    row[4] = row[1]/(row[3]-row[2])
+                    row[3] = row[1]/row[2]
                     rows.updateRow(row)
 
     # generate WHI scores
@@ -675,9 +702,8 @@ def streamAccess():
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 def riparianInt():
-    util.log("Starting riparianInt module")
-
     # Find landcover breakdown for riparian buffer - sqft per subwatershed
+    util.log("Starting riparianInt module")
 
     buffs = "150;300"
 
@@ -703,8 +729,12 @@ def riparianInt():
         util.log("Creating subwatershed/ vegetation raster combo")
         createVeg_combo(config.subwatersheds, veg_vect)
 
+    sect_result = util.fishnetChop(streams_erase)
+
+    """
     util.log("Intersecting riparian buffers with vectorized landcover")
     sect_result = arcpy.Intersect_analysis([streams_erase,config.canopy_combo_vect],config.temp_gdb + r"\rip_sect_result","NO_FID","","INPUT")
+    """
 
     #summarize data
     util.log("Creating summary table")
@@ -712,7 +742,7 @@ def riparianInt():
 
     #pivot info
     util.log("Creating pivot table")
-    Landcov_final = arcpy.PivotTable_management(summary,"WATERSHED;distance","gridcode","SUM_Shape_Area", config.primary_output + r"\Landcov_final")
+    Landcov_final = arcpy.PivotTable_management(summary,"WATERSHED;distance","gridcode","SUM_Shape_Area", config.temp_gdb + r"\Landcov_final")
 
     # create and populate square footage for each landcover type
     sqFoot_calc(Landcov_final)
@@ -797,6 +827,29 @@ def riparianInt():
     util.convertTo_table(stream_sumBy)
 
     util.log("Module complete ---------------------------------------------------------------")
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+def subwshed_Attach():
+    # attach WHI figs to subwatershed geometry
+    util.log("Starting subwshed_Attach module")
+
+    util.log("Copying subwatersheds to output gdb")
+    subwshed_copy = arcpy.CopyFeatures_management(config.subwatersheds, config.primary_output + r"\WHI_subwsheds")
+
+    util.log("Appending WHI fields")
+    arcpy.env.workspace = config.primary_output
+    tablelist = arcpy.ListTables("*final")
+    # don't include ShallowWater result as it is citywide, not broken out by subwatershed
+    tablelist.remove('ShallowWater_final')
+    join_field = "WATERSHED"
+    # for each table in the gdb append the field with the suffix "score" to the subwatersheds
+    for table in tablelist:
+        input_fields = []
+        fields = [f.name for f in arcpy.ListFields(input,"*_score")]
+        for field in fields:
+            input_fields = input_fields.append(field)
+            arcpy.JoinField_management(subwshed_copy,join_field,table,join_field,input_fields)
 
 
 if __name__ == '__main__':

@@ -39,17 +39,17 @@ streams = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.stream_lines_pdx"
 canopy = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.VEGETATION_2007_METRO"
 floodplain_clip = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\Shapefiles\Floodplain\Floodplain_clip.shp"
 river_depth = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.river_depths_ohw_pdx"
-stream_access = r"\\oberon\grp104\Watersheds-All\WSHIndex\Data\Geodatabase\Stream_Accessibility.mdb\Stream_Accessibility"
+stream_access = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\Geodatabase\Stream_Accessibility.mdb\Stream_Accessibility"
+stream_access_poly = r"\\besfile1\grp104\SciFiWi\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons"
 waterbodies = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.waterbodies_pdx"
 sump_delin = r'\\besfile1\StormWaterProgram\System_Plan\Risk_Assessment\ARC\ReviewDataSources\Task6_working.gdb\PublicSumpBasins'
 mst_dscs = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.mst_dsc_bes_pdx"
 streets = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.streets_pdx"
 
-canopy_combo_rast = temp_gdb + r"\canopy_combo_raster"
 canopy_combo_vect = primary_input + r"\canopy_combo_vector"
+fishnet = primary_input + r"\fishnet_city"
 
 # other - lists and dictionaries
-# CHECK ARCHIVE_LIST TO MAKE SURE IT HAS ALL SOURCES WE WANT ARCHIVED
 vect_archive_list = [subwatersheds,EDT_reaches,ImpA, BES_UIC, BMP_drainage, ecoroof_pnt, privateSMF, streams, canopy_combo_vect, floodplain_clip, stream_access, waterbodies]
 rast_archive_list = [canopy, river_depth]
 smf_dict = {'Constructed Treatment Wetland': 43560, 'Detention Pond - Dry': 43560, 'Detention Pond - Wet': 43560, 'Drywell': 2000, 'Infiltration Trench': 2000, 'Soakage Trench': 2000, 'Flow Through Planter Box': 2000, 'Infiltration Planter Box': 2000, 'Infiltration Baxin': 2000, 'Swale': 2000, 'Stormwater Reuse System': 2000, 'Porous Pavement': 27500}

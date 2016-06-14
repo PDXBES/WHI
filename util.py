@@ -16,7 +16,8 @@ def archive(input):
 
     # create new geodatabse
     archive_gdb = "WHI_archive_" +  datetime.datetime.now().strftime('%Y%m%d')
-    if arcpy.Exists(archive_gdb) == False:
+    full_path = os.path.join(config.archive_loc, archive_gdb + ".gdb")
+    if arcpy.Exists(full_path) == False:
         arcpy.CreateFileGDB_management(config.archive_loc, archive_gdb)
 
     # copy input files into geodatabase
@@ -24,22 +25,28 @@ def archive(input):
     # vector sources
     for fc in config.vect_archive_list:
         if arcpy.Exists(fc) == True:
-            arcpy.FeatureClassToGeodatabase_conversion(config.vect_archive_list, archive_gdb)
+            arcpy.FeatureClassToGeodatabase_conversion(config.vect_archive_list, full_path)
             return
         else:
             return str(fc) + " not found"
 
-    #raster sources
+    # raster sources
     for fc in config.rast_archive_list:
         if arcy.Exists(fc) == True:
-            arcpy.RasterToGeodatabase_conversion(config.rast_archive_list, archive_gdb)
+            arcpy.RasterToGeodatabase_conversion(config.rast_archive_list, full_path)
         else:
             return str(fc) + " not found"
 
-    #copy result tables into archive - CURRENTLY SET TO WORK FOR TABLES ONLY - EITHER ADD PIECE FOR FCs OR MAKE THEM ALL TABLES
+    # copy output files into geodatabase
+
+    # table outputs
     arcpy.env.workspace = config.primary_output
     tables = arcpy.ListTables()
-    arcpy.TableToGeodatabase_conversion(tables, archive_gdb)
+    arcpy.TableToGeodatabase_conversion(tables, full_path)
+
+    # feature class outputs
+    fcs = arcpy.ListFeatureClasses()
+    arcpy.FeatureClassToGeodatabase_conversion(fcs, full_path)
 
 
 def log(message):
@@ -81,10 +88,42 @@ def convertTo_table(input_fc):
         table_view = arcpy.MakeTableView_management(input_fc, "in_memory" + r"\table_view")
         # table to table - put in temp
         temp = arcpy.TableToTable_conversion(table_view,config.temp_gdb,desc.basename)
-        # delete original
-        arcpy.Delete_management(input_fc)
         # table to table - put back in final output location
         arcpy.TableToGeodatabase_conversion(temp,config.primary_output)
+        # delete original
+        arcpy.Delete_management(input_fc)
+
+def fishnetChop(comparison_fc):
+    # chops up input using fishnet then merges results back into one - seems to get around memory issues
+    # for now uses a fishnet of 3 polygons with city-wide extent
+    # canopy_combo_vect is a default input, the other is a param (comparison_fc)
+    log ("Intersecting DSCs and landcover")
+
+    log("generate list of IDs")
+    IDlist = []
+    with arcpy.da.SearchCursor(config.fishnet, "OID") as cursor:
+        for row in cursor:
+            IDlist.append(row[0])
+
+    # chop up the canopy into 3 pieces to run through the intersect
+    log("subset canopy polygons and run intersect on subsets")
+    fishnet_input = arcpy.MakeFeatureLayer_management(config.fishnet, "in_memory" + r"\fishnet_input")
+    canopy_input = arcpy.MakeFeatureLayer_management(config.canopy_combo_vect, "in_memory" + r"\canopy_input")
+    for ID in IDlist:
+        log("..." + str(ID) + " of 3 intersects")
+        net_sub = arcpy.SelectLayerByAttribute_management(fishnet_input, "NEW_SELECTION", "OID = {0}".format(ID))
+        canopy_sub = arcpy.SelectLayerByLocation_management(canopy_input,"HAVE_THEIR_CENTER_IN", net_sub, "", "NEW_SELECTION")
+        canopy_copy = arcpy.CopyFeatures_management(canopy_sub, config.temp_gdb + r"\canopy_copy{0}".format(ID),"#","0","0","0")
+        in_features = [canopy_copy,comparison_fc]
+        sect_result = arcpy.Intersect_analysis(in_features, config.temp_gdb + r"\sect_result{0}".format(ID),"NO_FID","","INPUT")
+
+    # then merge results
+    log("combine results of intersects")
+    arcpy.env.workspace = config.temp_gdb
+    fcs = arcpy.ListFeatureClasses("sect_result*")
+    sect_result = arcpy.Append_management([fcs[1], fcs[2]], fcs[0],"NO_TEST","","")
+
+    return sect_result
 
 def main():
     pass
