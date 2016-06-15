@@ -596,15 +596,19 @@ def streamAccess():
 
     util.log("Starting streamAccess module")
 
+    # clip access polygons to subwatersheds
+    util.log("Clipping access polygons to subwatersheds")
+    accesspoly_clip = arcpy.Clip_analysis(config.stream_access_poly, config.subwatersheds, config.temp_gdb + r"\accesspoly_clip")
+
     # intersect city streams with subwatersheds
     util.log("Intersecting streams with subwatersheds")
     in_features = [config.streams,config.subwatersheds]
-    streams_sect = arcpy.Intersect_analysis(in_features,"in_memory" + r"\streams_sect","NO_FID")
+    streams_sect = arcpy.Intersect_analysis(in_features, config.temp_gdb + r"\streams_sect","NO_FID")
 
     #intersect city streams with accessiblity polygons
     util.log("Intersecting city streams with accessibility polygons")
-    in_features = [streams_sect, config.stream_access_poly]
-    accesspoly_sect = arcpy.Intersect_analysis(in_features,"in_memory" + r"\accesspoly_sect","NO_FID","#","LINE")
+    in_features = [streams_sect, accesspoly_clip]
+    accesspoly_sect = arcpy.Intersect_analysis(in_features, config.temp_gdb + r"\accesspoly_sect","NO_FID","#","LINE")
 
     # intersect accessible streams with subwatersheds
     util.log("Intersecting stream accessibility with subwatersheds")
@@ -620,7 +624,7 @@ def streamAccess():
     field_list = ["Curr_Acc","Hist_Acc","Status"]
     with arcpy.da.UpdateCursor(access_sect,field_list) as rows:
         for row in rows:
-            if row[0] == "n" and row[1] is None:
+            if row[0] is None and row[1] == "n":
                 row[2] ="Hist_Innacessible"
             elif row[0] == "n" and row[1] == "n":
                 row[2] = "Hist_Innacessible"
@@ -636,21 +640,21 @@ def streamAccess():
 
     #summarize data
     util.log("Creating summary table for all streams")
-    streams_summary = arcpy.Statistics_analysis(streams_sect,config.temp_gdb + r"\streams_summary_table","Shape_Leng SUM", "WATERSHED")
+    streams_summary = arcpy.Statistics_analysis(streams_sect,config.temp_gdb + r"\streams_summary_table","Shape_Length SUM", "WATERSHED")
     arcpy.AddField_management(streams_summary,"WSHED_TOTAL_LEN","DOUBLE")
 
-    input_fields = ["SUM_Shape_Leng","WSHED_TOTAL_LEN"]
+    input_fields = ["SUM_Shape_Length","WSHED_TOTAL_LEN"]
     with arcpy.da.UpdateCursor(streams_summary,input_fields) as rows:
         for row in rows:
             row[1] = row[0]
             rows.updateRow(row)
 
     util.log("Creating summary table for accessible streams")
-    access_summary = arcpy.Statistics_analysis(access_sect,config.temp_gdb + r"\access_summary_table","Shape_Leng SUM", "WATERSHED;Status")
+    access_summary = arcpy.Statistics_analysis(access_sect,config.temp_gdb + r"\access_summary_table","Shape_Length SUM", "WATERSHED;Status")
 
     # pivot info
     util.log("Creating pivot table")
-    access_final = arcpy.PivotTable_management(access_summary, "WATERSHED", "Status", "SUM_Shape_Leng", config.primary_output + r"\access_final")
+    access_final = arcpy.PivotTable_management(access_summary, "WATERSHED", "Status", "SUM_Shape_Length", config.primary_output + r"\access_final")
 
     util.log("Adding Shape Length from city streams")
     arcpy.JoinField_management(access_final,"WATERSHED",streams_summary,"WATERSHED","WSHED_TOTAL_LEN")
@@ -659,19 +663,19 @@ def streamAccess():
     util.log("Calc % fully accessible")
     rate_field1 = "Pcnt_Full_Access"
     arcpy.AddField_management(access_final,rate_field1,"Double")
-    cursor_fields = ["Curr_Full", "Curr_Partial", "Hist_Accessible", rate_field1]
+    cursor_fields = ["Curr_Full", "Curr_Partial", "WSHED_TOTAL_LEN", rate_field1]
     with arcpy.da.UpdateCursor(access_final,cursor_fields) as rows:
                 for row in rows:
-                    row[3] = row[0]/row[2]
+                    row[3] = (row[0]/row[2])*100
                     rows.updateRow(row)
 
     util.log("Calc % partially accessible")
     rate_field2 = "Pcnt_Partial_Access"
     arcpy.AddField_management(access_final,rate_field2,"Double")
-    cursor_fields = ["Curr_Full", "Curr_Partial", "Hist_Accessible", rate_field2]
+    cursor_fields = ["Curr_Full", "Curr_Partial", "WSHED_TOTAL_LEN", rate_field2]
     with arcpy.da.UpdateCursor(access_final,cursor_fields) as rows:
                 for row in rows:
-                    row[3] = row[1]/row[2]
+                    row[3] = (row[1]/row[2])*100
                     rows.updateRow(row)
 
     # generate WHI scores
