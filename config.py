@@ -19,7 +19,8 @@ primary_output = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\WHI_primary_ou
 temp_gdb = r"C:\Temp\WHI_working.gdb"
 
 # data in the archive location will be date stamped and appended, not overwritten
-archive_loc = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\Archive"
+#archive_loc = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\Archive" - OLD
+archive_loc = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Archive"
 
 city_bound = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.portland_pdx"
 
@@ -40,7 +41,7 @@ canopy = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.VEGETATION_2007_METRO"
 floodplain_clip = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\Shapefiles\Floodplain\Floodplain_clip.shp"
 river_depth = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.river_depths_ohw_pdx"
 stream_access = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\Geodatabase\Stream_Accessibility.mdb\Stream_Accessibility"
-stream_access_poly = r"\\besfile1\grp104\SciFiWi\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons" # remove _DCA when done
+stream_access_poly = r"\\besfile1\grp104\SciFiWi\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons"
 waterbodies = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.waterbodies_pdx"
 sump_delin = r'\\besfile1\StormWaterProgram\System_Plan\Risk_Assessment\ARC\ReviewDataSources\Task6_working.gdb\PublicSumpBasins'
 mst_dscs = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.mst_dsc_bes_pdx"

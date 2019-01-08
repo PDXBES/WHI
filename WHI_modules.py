@@ -8,7 +8,7 @@
 # modules to calculate WHI scores
 #-------------------------------------------------------------------------------
 
-import arcpy, config, calc, util
+import arcpy, config, calc, util, os
 
 arcpy.env.overwriteOutput = True
 
@@ -18,8 +18,12 @@ arcpy.env.overwriteOutput = True
 def sumBy(inputFC, sectFC, groupby_list, sum_field, output):
     # intersects two feature classes then dissolves them by specified field and aggregation values
     # groupby_list can be a list of one
+    util.log("Aggregating values (sumBy)")
     util.log("   sumBy - intersecting")
     intersect = arcpy.Intersect_analysis([inputFC , sectFC],config.temp_gdb + r"\sect","NO_FID","#","INPUT")
+    if arcpy.Exists(output):
+        util.log("   deleting existing dissolve result")
+        arcpy.Delete_management(output)
     util.log("   sumBy - dissolving")
     arcpy.Dissolve_management(intersect,output,groupby_list,sum_field,"MULTI_PART","DISSOLVE_LINES")
 
@@ -164,7 +168,7 @@ def EIA():
     ImpA_single = arcpy.MultipartToSinglepart_management(config.ImpA, "in_memory\ImpA_single")
     util.log("...clipping ImpA to city boundary")
     ImpA_cityclip = arcpy.Clip_analysis(ImpA_single,config.city_bound, "in_memory" + r"\ImpA_cityclip")
-    #ImpA_BMPclip = arcpy.Clip_analysis(ImpA_cityclip, ponds_swales , "in_memory" + r"\ImpA_BMPclip")
+    #ImpA_BMPclip = arcpy.Clip_analysis(ImpA_cityclip, ponds_swales , "in_memory" + r"\ImpA_BMPclip") # WHAT IS THIS? DELETE?
     ImpA_output = "in_memory" + r"\ImpA_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Area SUM"
@@ -206,6 +210,8 @@ def EIA():
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Area SUM"
     sumBy(BMP_ImpAclip, config.subwatersheds, groupby_list, sum_field, BMP_output)
+
+    util.log("... renaming field")
     BMP_old = "SUM_Shape_Area"
     BMP_new = 'BMP_Area'
     old_new = {BMP_old : BMP_new}
@@ -325,12 +331,12 @@ def streamConn():
     # subset streams to piped only
     streams_sub = arcpy.MakeFeatureLayer_management(config.streams,"streams_sub","LINE_TYPE in ('Stormwater Pipe','Stormwater Culvert','Combined Stormwater/Sewer Pipe')")
 
-    # intersect and group subset
+    # intersect and group stream subset by subwatershed
     util.log("Prepping stream subset")
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Length SUM"
     piped_byWshed = config.temp_gdb + r"\streamConn_final"
-    sumBy(streams_sub, config.subwatersheds,groupby_list, sum_field, piped_byWshed)
+    sumBy(streams_sub, config.subwatersheds, groupby_list, sum_field, piped_byWshed)
 
     # intersect and group full set
     util.log("Prepping full stream set")
@@ -348,6 +354,7 @@ def streamConn():
     arcpy.JoinField_management(piped_byWshed,"WATERSHED",fulltemp,"WATERSHED","Full_Length")
 
     # IF WE NEED TO ADJUST FOR NATURAL BOTTOM CULVERTS HERE IS WHERE IT WOULD HAPPEN - see #3 in documentation
+    # JEN to create polygons which tells us where the natural bottom culverts are
 
     # create and populate % piped field
     util.log("Adding/ calculating Pcnt piped/ subwatershed")
@@ -365,12 +372,17 @@ def streamConn():
             row[1] = calc.streamCon_score(row[0])
             rows.updateRow(row)
 
+    # convert fc to table and output to primary output
+    desc = arcpy.Describe(piped_byWshed)
+    table_view = arcpy.MakeTableView_management(piped_byWshed, "in_memory" + r"\table_view")
+    final_output = arcpy.TableToTable_conversion(table_view,config.temp_gdb,desc.basename)
+
     util.log("Cleaning up")
     arcpy.Delete_management("in_memory")
 
     # convert output to table if needed
     util.log("Copying result to table")
-    util.convertTo_table(piped_byWshed)
+    util.convertTo_table(final_output)
 
     util.log("Module complete ---------------------------------------------------------------")
 
@@ -467,7 +479,7 @@ def treeCanopy():
 
 def floodplainCon():
     # this module is dependent on the combined 100 year and 1996 floodplain to create config.floodplain_clip
-    # if either of these sources changes then the config.floodplain_clip source would need to be updated
+    # if either of these sources were to change then the config.floodplain_clip source would need to be updated
 
     util.log("Starting floodplainConn module")
 
@@ -491,8 +503,6 @@ def floodplainCon():
     sqFoot_calc(floodplainConn_final)
 
     util.log("Calc % vegetation")
-    # join back to clipped wshed geometry to get total Shape_Area - DON'T THINK THIS ACTUALLY GETS USED, REMOVE IF NOT
-    # arcpy.JoinField_management(floodplainConn_final,"WATERSHED",floodplain_clip,"WATERSHED","Shape_Area")
     rate_field = "Pcnt_canopy"
     arcpy.AddField_management(floodplainConn_final,rate_field,"Double")
     cursor_fields = ["Built","Low_Med","High",rate_field] # Water is NOT included in final calculation
@@ -527,9 +537,6 @@ def shallowWaterRef():
 
     util.log("Clipping depth raster to EDT reach extent")
     arcpy.CheckOutExtension("Spatial")
-    # WAS GOING TO USE EXTRACT BY MASK HERE BUT IT WAS HAVING ISSUES - CLIP IS FASTER ANYWAY
-    #desc = arcpy.Describe(reach_diss)
-    #extent = desc.extent
     depth_clip = arcpy.Clip_management(config.river_depth,"#",config.temp_gdb + r"\depth_clip",reach_diss,"-3.402823e+038","ClippingGeometry","NO_MAINTAIN_EXTENT")
 
     util.log("Converting depth raster to positive values and adjusting to ordinary low water mark")
@@ -735,11 +742,6 @@ def riparianInt():
 
     sect_result = util.fishnetChop(streams_erase)
 
-    """
-    util.log("Intersecting riparian buffers with vectorized landcover")
-    sect_result = arcpy.Intersect_analysis([streams_erase,config.canopy_combo_vect],config.temp_gdb + r"\rip_sect_result","NO_FID","","INPUT")
-    """
-
     #summarize data
     util.log("Creating summary table")
     summary = arcpy.Statistics_analysis(sect_result,config.temp_gdb + r"\riparian_summary_table","Shape_Area SUM", "WATERSHED;gridcode;distance")
@@ -785,8 +787,6 @@ def riparianInt():
     crossing_sumBy = "in_memory" + r"\sect_sumBy"
     sumBy(crossing_sect, config.subwatersheds,groupby_list, sum_field, crossing_sumBy)
 
-    # Convert Crossing info to table?
-
     # Intersect streams with subwatersheds, group by WATERSHED and get summed area
     util.log("Intersecting streams with subwtwatersheds and grouping length by subwatershed")
     groupby_list = ["WATERSHED"]
@@ -812,8 +812,6 @@ def riparianInt():
     # Combine info from % canopy and # of crossings per kilometer into one place
     util.log("Add % canopy data to crossings per stream km info")
     arcpy.JoinField_management(stream_sumBy,"WATERSHED",Landcov_final,"WATERSHED","Pcnt_Canopy")
-
-    # ZERO OUT ANY NULLS IN DATA???
 
     # WHI score
     util.log("Calc WHI score")

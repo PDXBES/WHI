@@ -88,15 +88,17 @@ def convertTo_table(input_fc):
         table_view = arcpy.MakeTableView_management(input_fc, "in_memory" + r"\table_view")
         # table to table - put in temp
         temp = arcpy.TableToTable_conversion(table_view,config.temp_gdb,desc.basename)
-        # table to table - put back in final output location
-        arcpy.TableToGeodatabase_conversion(temp,config.primary_output)
         # delete original
         arcpy.Delete_management(input_fc)
+        # table to table - put back in final output location
+        table = arcpy.TableToGeodatabase_conversion(temp,config.primary_output)
 
 def fishnetChop(comparison_fc):
-    # chops up input using fishnet then merges results back into one - seems to get around memory issues
-    # for now uses a fishnet of 3 polygons with city-wide extent
+    # Chops up the canopy fc using fishnet, intersects this with the comparison_fc,
+    # then merges results back into one - seems to get around memory issues.
+    # For now uses a fishnet of 3 polygons with city-wide extent.
     # canopy_combo_vect is a default input, the other is a param (comparison_fc)
+
     log ("Intersecting DSCs and landcover")
 
     log("generate list of IDs")
