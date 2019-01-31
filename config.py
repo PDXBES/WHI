@@ -14,36 +14,36 @@ egh_public = r"\\oberon\grp117\DAshney\Scripts\connections\egh_public on gisdb1.
 egh_raster = r"\\oberon\grp117\DAshney\Scripts\connections\egh_raster on gisdb1.rose.portland.local.sde"
 
 # data in these locations will be overwritten with each process run
-primary_input = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\WHI_primary_input.gdb"
-primary_output = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\WHI_primary_output.gdb"
+primary_input = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\WHI_primary_input.gdb"
+primary_output = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\WHI_primary_output.gdb"
 temp_gdb = r"C:\Temp\WHI_working.gdb"
 
 # data in the archive location will be date stamped and appended, not overwritten
-#archive_loc = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\Archive" - OLD
 archive_loc = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Archive"
 
 city_bound = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.portland_pdx"
 
-# aggregation boundaries
-# Q - might the subwatersheds change with the 10th floor re-org?
-subwatersheds = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\Shapefiles\Watersheds with Willamette Mainstem and Tribs\Portland_Watersheds_Willamette_Tribs_and_Mainstem.shp"
-EDT_reaches = egh_public + r"\EGH_Public.ARCMAP_ADMIN.willamette_reaches_pdx"
-
 # sources
+
+# the ones in this group are static/ manually maintained - be aware
+floodplain_clip = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Floodplain\Floodplain_clip.shp"
+stream_access_poly = r"\\besfile1\grp104\SID\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons"
+subwatersheds = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Watersheds with Willamette Mainstem and Tribs\Portland_Watersheds_Willamette_Tribs_and_Mainstem.shp"
+# culvert_retrofit = placeholder for Jen's spreadsheet
+BMP_drainage = r"\\besfile1\Modeling\GridMaster\BMP\PRF\ARC\Working\Drainage_Delineation\DelineationFinal_results.gdb\Delineation_04_2015"
+sump_delin = r'\\besfile1\StormWaterProgram\System_Plan\Risk_Assessment\ARC\ReviewDataSources\Task6_working.gdb\PublicSumpBasins'
+
+
+EDT_reaches = egh_public + r"\EGH_Public.ARCMAP_ADMIN.willamette_reaches_pdx"
 collection_lines = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.collection_lines_bes_pdx"
 ImpA = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.impervious_area_bes_pdx"
 BES_UIC = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.uic_bes_pdx"
-BMP_drainage = r"\\besfile1\Modeling\GridMaster\BMP\PRF\ARC\Working\Drainage_Delineation\DelineationFinal_results.gdb\Delineation_04_2015"
 ecoroof_pnt = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.ecoroof_pts_bes_pdx"
 privateSMF = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.priv_mip_strm_facs_bes_pdx"
 streams = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.stream_lines_pdx"
 canopy = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.VEGETATION_2007_METRO"
-floodplain_clip = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\Shapefiles\Floodplain\Floodplain_clip.shp"
 river_depth = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.river_depths_ohw_pdx"
-stream_access = r"\\besfile1\grp104\Watersheds-All\WSHIndex\Data\Geodatabase\Stream_Accessibility.mdb\Stream_Accessibility"
-stream_access_poly = r"\\besfile1\grp104\SciFiWi\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons"
 waterbodies = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.waterbodies_pdx"
-sump_delin = r'\\besfile1\StormWaterProgram\System_Plan\Risk_Assessment\ARC\ReviewDataSources\Task6_working.gdb\PublicSumpBasins'
 mst_dscs = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.mst_dsc_bes_pdx"
 streets = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.streets_pdx"
 
