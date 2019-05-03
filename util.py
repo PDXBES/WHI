@@ -94,7 +94,7 @@ def convertTo_table(input_fc):
         table = arcpy.TableToGeodatabase_conversion(temp,config.primary_output)
 
 def fishnetChop(comparison_fc):
-    # Chops up the canopy fc using fishnet, intersects this with the comparison_fc,
+    # Chops up the canopy fc using static fishnet, intersects this with the comparison_fc,
     # then merges results back into one - seems to get around memory issues.
     # For now uses a fishnet of 3 polygons with city-wide extent.
     # canopy_combo_vect is a default input, the other is a param (comparison_fc)

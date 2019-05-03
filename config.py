@@ -25,18 +25,18 @@ city_bound = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.portland_pdx"
 
 # sources
 
-# the ones in this group are static/ manually maintained - be aware
+# the ones in this group are static/ manually maintained - beware
 floodplain_clip = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Floodplain\Floodplain_clip.shp"
 stream_access_poly = r"\\besfile1\grp104\SID\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons"
 subwatersheds = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Watersheds with Willamette Mainstem and Tribs\Portland_Watersheds_Willamette_Tribs_and_Mainstem.shp"
-# culvert_retrofit = placeholder for Jen's spreadsheet
+culvert_retrofit = r"\\besfile1\GRP104\SID\20-Monitoring\WSHIndex\2018\Percent_Piped\2018 Retrofitted Culverts data.xlsx"
 BMP_drainage = r"\\besfile1\Modeling\GridMaster\BMP\PRF\ARC\Working\Drainage_Delineation\DelineationFinal_results.gdb\Delineation_04_2015"
 sump_delin = r'\\besfile1\StormWaterProgram\System_Plan\Risk_Assessment\ARC\ReviewDataSources\Task6_working.gdb\PublicSumpBasins'
 
 
 EDT_reaches = egh_public + r"\EGH_Public.ARCMAP_ADMIN.willamette_reaches_pdx"
 collection_lines = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.collection_lines_bes_pdx"
-ImpA = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.impervious_area_bes_pdx"
+ImpA = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.emgaats_areas_bes_pdx"
 BES_UIC = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.uic_bes_pdx"
 ecoroof_pnt = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.ecoroof_pts_bes_pdx"
 privateSMF = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.priv_mip_strm_facs_bes_pdx"
