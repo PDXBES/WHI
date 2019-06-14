@@ -2,7 +2,7 @@
 # Name:        util
 # Purpose:     Utility functions for ARC
 #
-# Author:      aengelmann_z, sainsbury_b
+# Author:
 #
 # Created:     09/02/2015
 # Copyright:   (c) City of Portland BES 2015
@@ -10,9 +10,9 @@
 #-------------------------------------------------------------------------------
 import arcpy, os, datetime, config
 
-output_dir = os.path.curdir
 
-def archive(input):
+def archive():
+    log("Archiving WHI inputs and outputs")
 
     # create new geodatabse
     archive_gdb = "WHI_archive_" +  datetime.datetime.now().strftime('%Y%m%d')
@@ -21,6 +21,7 @@ def archive(input):
         arcpy.CreateFileGDB_management(config.archive_loc, archive_gdb)
 
     # copy input files into geodatabase
+    log("...archiving inputs")
 
     # vector sources
     for fc in config.vect_archive_list:
@@ -38,6 +39,7 @@ def archive(input):
             return str(fc) + " not found"
 
     # copy output files into geodatabase
+    log("...archiving outputs")
 
     # table outputs
     arcpy.env.workspace = config.primary_output
@@ -47,13 +49,15 @@ def archive(input):
     # feature class outputs
     fcs = arcpy.ListFeatureClasses()
     arcpy.FeatureClassToGeodatabase_conversion(fcs, full_path)
+    log("Archiving complete")
 
 
 def log(message):
+    output_dir = r"\\besfile1\asm_projects\Watershed_Health_Index\Dev"
     time_stamp = datetime.datetime.now().strftime('%x %X')
     full_message = "{0} - {1}".format(time_stamp, message)
     print full_message
-    log_file = open(os.path.join(output_dir, "Swsp.Build.log"), 'a')
+    log_file = open(os.path.join(output_dir, "WHI_Build.log"), 'a')
     log_file.write(full_message + "\n")
     log_file.close()
 
@@ -81,17 +85,19 @@ def addShape_Area(inputFC):
     else:
         print "Shape_Area already exists"
 
-def convertTo_table(input_fc):
-    desc = arcpy.Describe(input_fc)
+def tableTo_primaryOutput(input_object):
+    log("Copy result table to primary output gdb")
+    desc = arcpy.Describe(input_object)
     if desc.dataElementType <> 'DETable':
-        # make Table view
-        table_view = arcpy.MakeTableView_management(input_fc, "in_memory" + r"\table_view")
-        # table to table - put in temp
-        temp = arcpy.TableToTable_conversion(table_view,config.temp_gdb,desc.basename)
-        # delete original
-        arcpy.Delete_management(input_fc)
-        # table to table - put back in final output location
-        table = arcpy.TableToGeodatabase_conversion(temp,config.primary_output)
+        # if not a table - convert fc to table
+        table_view = arcpy.MakeTableView_management(input_object, desc.basename)
+        # move table to primary output gdb
+        full_output_name = os.path.join(config.primary_output, desc.basename)
+        arcpy.TableToGeodatabase_conversion(table_view, config.primary_output)
+    else:
+        # if already a table - copy table to primary output gdb
+        full_output_name = os.path.join(config.primary_output, desc.basename)
+        arcpy.Copy_management(input_object, full_output_name)
 
 def fishnetChop(comparison_fc):
     # Chops up the canopy fc using static fishnet, intersects this with the comparison_fc,
@@ -126,6 +132,24 @@ def fishnetChop(comparison_fc):
     sect_result = arcpy.Append_management([fcs[1], fcs[2]], fcs[0],"NO_TEST","","")
 
     return sect_result
+
+def delete_gdb_contents(target_gdb):
+    msg = "Deleting contents of gdb: " + target_gdb
+    log(msg)
+    arcpy.env.workspace = target_gdb
+    fcs = arcpy.ListFeatureClasses()
+    if len(fcs) > 0 or len(fcs) != None:
+        for fc in fcs:
+            arcpy.Delete_management(fc)
+    tables = arcpy.ListTables()
+    if len(tables) > 0 or len(tables) != None:
+        for table in tables:
+            arcpy.Delete_management(table)
+    rasters = arcpy.ListRasters()
+    if len(rasters) > 0 or len(rasters) != None:
+        for raster in rasters:
+            arcpy.Delete_management(raster)
+
 
 def main():
     pass
