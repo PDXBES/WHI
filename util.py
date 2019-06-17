@@ -26,6 +26,7 @@ def archive():
     # vector sources
     for fc in config.vect_archive_list:
         if arcpy.Exists(fc) == True:
+            log("......vectors")
             arcpy.FeatureClassToGeodatabase_conversion(config.vect_archive_list, full_path)
             return
         else:
@@ -34,6 +35,7 @@ def archive():
     # raster sources
     for fc in config.rast_archive_list:
         if arcy.Exists(fc) == True:
+            log("......rasters")
             arcpy.RasterToGeodatabase_conversion(config.rast_archive_list, full_path)
         else:
             return str(fc) + " not found"
@@ -42,13 +44,16 @@ def archive():
     log("...archiving outputs")
 
     # table outputs
+    log("......tables")
     arcpy.env.workspace = config.primary_output
     tables = arcpy.ListTables()
     arcpy.TableToGeodatabase_conversion(tables, full_path)
 
     # feature class outputs
+    log("......feature class(es)")
     fcs = arcpy.ListFeatureClasses()
     arcpy.FeatureClassToGeodatabase_conversion(fcs, full_path)
+
     log("Archiving complete")
 
 

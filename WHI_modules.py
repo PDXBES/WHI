@@ -245,36 +245,31 @@ def EIA():
     roof_output_new = config.temp_gdb + r"\ecoroof"
     rename_fields(roof_output , roof_output_new , old_new)
 
+# ----------------------- WORKING
     util.log("... private SMF piece")
-    # pulls sqft value from dictionary and assigns based on facility type
     smf_field = "assumed_value"
-    arcpy.AddField_management(private_SMF, smf_field, "DOUBLE")
-    keylist = []
-    for key, value in config.smf_dict.iteritems():
-        keylist.append(key)
-    with arcpy.da.UpdateCursor(private_SMF, ["Code", smf_field]) as rows:
-        for row in rows:
-            if str(row[0]).strip() in keylist:
-                row[1] = config.smf_dict[str(row[0]).strip()]
-                rows.updateRow(row)
-
-    # this block removes records where the Code field did not match a key from config.smf_dict ie excludes any types we don't want
-    util.log("Cleaning up Code field")
-    with arcpy.da.UpdateCursor(private_SMF,smf_field) as rows:
-        for row in rows:
-            if row[0] is None:
-                rows.deleteRow()
-
-    util.log("Renaming fields")
+    # intersect OSSMA and ImpA
+    ossma_impa_sect = arcpy.Intersect_analysis([config.OSSMA , config.ImpA],config.temp_gdb + r"\ossma_impa_sect","NO_FID","#","INPUT")
+    # add and calc field: reduced_ImpA = OSSMA.final_red * ShapeArea
+    arcpy.AddField_management(ossma_impa_sect, "reduced_ImpA", "DOUBLE")
+    with arcpy.da.UpdateCursor(ossma_impa_sect, ["Final_Red", "Shape_Area", "reduced_ImpA"]) as cursor:
+        for row in cursor:
+            (row[0]/100)*row[1] = row[2]
+            cursor.updateRow(row)
+    # run sumBy to sum reduced_ImpA area to the watershed
+    util.log("Summing watershed area values")
     smf_output = config.temp_gdb + r"\smf_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "assumed_value SUM"
-    sumBy(private_SMF,config.subwatersheds,groupby_list,sum_field,smf_output)
+    sumBy(ossma_impa_sect, config.subwatersheds, groupby_list, sum_field, smf_output)
+    # rename sum field and set result = to EIA_final - all other values will be appended to this fc
+    util.log("Renaming fields")
     SMF_old = "SUM_assumed_value"
     SMF_new = 'SMF_Area'
     old_new = {SMF_old : SMF_new}
-    EIA_final = config.primary_output + r"\EIA_final"
+    EIA_final = config.temp_gdb + r"\EIA_final"
     rename_fields(smf_output , EIA_final , old_new)
+# ----------------------- WORKING
 
     sum_field = 'Shape_Area'
     subwshed_new = 'Subwshed_Area'
@@ -375,25 +370,6 @@ def streamConn():
 
     util.tableTo_primaryOutput(piped_byWshed)
     util.log("Module complete ---------------------------------------------------------------")
-
-"""
-    # convert fc to table and output to primary output
-    desc = arcpy.Describe(piped_byWshed)
-    table_view = arcpy.MakeTableView_management(piped_byWshed, "in_memory" + r"\table_view")
-    final_output = arcpy.TableToTable_conversion(table_view,config.temp_gdb,desc.basename)
-
-    util.log("Cleaning up")
-    arcpy.Delete_management("in_memory")
-
-    # convert output to table if needed
-    util.log("Copying result to table")
-    final_table_name = "streamConn_final"
-    full_table_path = os.path.join(config.primary_output, final_table_name)
-    if arcpy.Exists(full_table_path):
-        arcpy.Delete_management(full_table_path)
-    arcpy.TableToTable_conversion(final_output, config.primary_output, final_table_name)
-"""
-
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -802,7 +778,7 @@ def riparianInt():
     util.log("Intersecting streams with subwtwatersheds and grouping length by subwatershed")
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Length SUM"
-    stream_sumBy = config.primary_output + r"\riparianInt_final"
+    stream_sumBy = config.temp_gdb + r"\riparianInt_final"
     sumBy(streams_clip,config.subwatersheds, groupby_list, sum_field, stream_sumBy)
 
     # Append information into one place
@@ -848,7 +824,10 @@ def subwshed_Attach():
     util.log("Starting subwshed_Attach module")
 
     util.log("Copying subwatersheds to output gdb")
-    subwshed_copy = arcpy.CopyFeatures_management(config.subwatersheds, config.primary_output + r"\WHI_subwsheds")
+    final_subwsheds = config.primary_output + r"\WHI_subwsheds"
+    if arcpy.Exists(final_subwsheds):
+        arcpy.DeleteFeatures_management(final_subwsheds)
+    subwshed_copy = arcpy.CopyFeatures_management(config.subwatersheds, final_subwsheds)
 
     util.log("Appending WHI fields")
     arcpy.env.workspace = config.primary_output
@@ -862,8 +841,14 @@ def subwshed_Attach():
         fields = [f.name for f in arcpy.ListFields(table,"*_score")]
         for field in fields:
             input_fields.append(field)
-            arcpy.JoinField_management(subwshed_copy,join_field,table,join_field,input_fields)
 
+    #subwshed_fields = [f.name for f in arcpy.ListFields(subwshed_copy)]
+    #for field in input_fields:
+    #    if field in subwshed_fields:
+    #        arcpy.DeleteField_management(field)
+
+        arcpy.JoinField_management(subwshed_copy,join_field,table,join_field,input_fields)
+    util.log("Module complete")
 
 if __name__ == '__main__':
     print ("This script is meant to be run as a module")
