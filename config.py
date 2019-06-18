@@ -12,6 +12,7 @@
 # connections to city gis hub data
 egh_public = r"\\oberon\grp117\DAshney\Scripts\connections\egh_public on gisdb1.rose.portland.local.sde"
 egh_raster = r"\\oberon\grp117\DAshney\Scripts\connections\egh_raster on gisdb1.rose.portland.local.sde"
+SWSP = r"\\oberon\grp117\DAshney\Scripts\connections\BESDBPROD1.SWSP.sde"
 
 # data in these locations will be overwritten with each process run
 primary_input = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\WHI_primary_input.gdb"
@@ -46,6 +47,7 @@ river_depth = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.river_depths_ohw_pdx"
 waterbodies = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.waterbodies_pdx"
 mst_dscs = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.mst_dsc_bes_pdx"
 streets = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.streets_pdx"
+OSSMA = SWSP + r"\SWSP.GIS.ossma_taxlots"
 
 canopy_combo_vect = primary_input + r"\canopy_combo_vector"
 fishnet = primary_input + r"\fishnet_city"

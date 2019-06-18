@@ -30,6 +30,7 @@ arcpy.env.overwriteOutput = True
 def sumBy_intersect(inputFC, sectFC, groupby_list, sum_field, output):
     # intersects two feature classes then dissolves them by specified field and aggregation values
     # groupby_list can be a list of one
+    # use _intersect for geometry based summaries (area, length)
     util.log("Aggregating values (sumBy)")
     util.log("   sumBy - intersecting")
     intersect = arcpy.Intersect_analysis([inputFC , sectFC],config.temp_gdb + r"\sect","NO_FID","#","INPUT")
@@ -41,6 +42,7 @@ def sumBy_intersect(inputFC, sectFC, groupby_list, sum_field, output):
 
 def sumBy_select(inputFC, selectFC, groupby_list, sum_field, output):
     # selects inputFC (centroid) using the location of the selectFC then dissolves them by specified field and aggregation values
+    # use _select for pre-filled values (non geometry derived)
     util.log("Aggregating values (sumBy)")
     util.log("   sumBy - selecting")
     selection = arcpy.SelectLayerByLocation_management(inputFC, "HAVE_THEIR_CENTER_IN", selectFC)
@@ -263,7 +265,7 @@ def EIA():
     roof_output_new = config.temp_gdb + r"\ecoroof"
     rename_fields(roof_output , roof_output_new , old_new)
 
-# ----------------------- WORKING
+# ----------------------- QC
     util.log("... private SMF piece")
     smf_field = "assumed_value"
     # intersect OSSMA and ImpA
@@ -272,7 +274,7 @@ def EIA():
     arcpy.AddField_management(ossma_impa_sect, "reduced_ImpA", "DOUBLE")
     with arcpy.da.UpdateCursor(ossma_impa_sect, ["Final_Red", "Shape_Area", "reduced_ImpA"]) as cursor:
         for row in cursor:
-            (row[0]/100)*row[1] = row[2]
+            row[2] = (row[0]/100)*row[1]
             cursor.updateRow(row)
     # run sumBy to sum reduced_ImpA area to the watershed
     util.log("Summing watershed area values")
@@ -287,7 +289,7 @@ def EIA():
     old_new = {SMF_old : SMF_new}
     EIA_final = config.temp_gdb + r"\EIA_final"
     rename_fields(smf_output , EIA_final , old_new)
-# ----------------------- WORKING
+# ----------------------- QC
 
     sum_field = 'Shape_Area'
     subwshed_new = 'Subwshed_Area'
@@ -487,38 +489,68 @@ def floodplainCon():
 
     util.log("Starting floodplainConn module")
 
-    # test if the "combo" canopy already exists, if not create vectorized canopy version
-    veg_vect = config.canopy_combo_vect
-    if arcpy.Exists(config.canopy_combo_vect) == False:
-        util.log("Creating subwatershed/ vegetation raster combo")
-        createVeg_combo(config.subwatersheds, veg_vect)
+##    # test if the "combo" canopy already exists, if not create vectorized canopy version
+##    veg_vect = config.canopy_combo_vect
+##    if arcpy.Exists(config.canopy_combo_vect) == False:
+##        util.log("Creating subwatershed/ vegetation raster combo")
+##        createVeg_combo(config.subwatersheds, veg_vect)
+##
+##    # clip landcover with floodplain area
+##    util.log("Clipping landcover to floodplain area")
+##    floodplain_clip = arcpy.Clip_analysis(veg_vect, config.floodplain_clip, config.temp_gdb + r"\floodplain_clip")
+##
+##    util.log("Creating summary table")
+##    summary = arcpy.Statistics_analysis(floodplain_clip,config.temp_gdb + r"\floodplain_summary_table","Shape_Area SUM", "WATERSHED;gridcode")
+##
+##    util.log("Creating pivot table")
+##    floodplainConn_final = arcpy.PivotTable_management(summary,"WATERSHED","gridcode","SUM_Shape_Area", config.temp_gdb + r"\floodplainCon_final")
+##
+##    # create and populate square footage for each landcover type
+##    sqFoot_calc(floodplainConn_final)
+##
+##    util.log("Calc % vegetation")
+##    rate_field = "Pcnt_canopy"
+##    arcpy.AddField_management(floodplainConn_final,rate_field,"Double")
+##    cursor_fields = ["Built","Low_Med","High",rate_field] # Water is NOT included in final calculation
+##    with arcpy.da.UpdateCursor(floodplainConn_final,cursor_fields) as rows:
+##                for row in rows:
+##                    row[3] = (row[1]+row[2])/(row[0]+row[1]+row[2])*100
+##                    rows.updateRow(row)
 
-    # clip landcover with floodplain area
-    util.log("Clipping landcover to floodplain area")
-    floodplain_clip = arcpy.Clip_analysis(veg_vect, config.floodplain_clip, config.temp_gdb + r"\floodplain_clip")
+    util.log("Clip impervious area to floodplain")
+    ImpA_floodplain_clip = arcpy.Clip_analysis(config.ImpA, config.floodplain_clip, config.temp_gdb + r"\ImpA_floodplain_clip")
 
-    util.log("Creating summary table")
-    summary = arcpy.Statistics_analysis(floodplain_clip,config.temp_gdb + r"\floodplain_summary_table","Shape_Area SUM", "WATERSHED;gridcode")
+    util.log("Find area of floodplain per watershed")
+    floodplain_sumBy = config.temp_gdb + r"\floodplain_sumBy"
+    groupby_list = ["WATERSHED"]
+    sum_field = "Shape_Area SUM"
+    sumBy_intersect(config.floodplain_clip, config.subwatersheds, groupby_list, sum_field, floodplain_sumBy)
+    # rename "SUM_Shape_Area" to "Total_Floodplain_Area"
 
-    util.log("Creating pivot table")
-    floodplainConn_final = arcpy.PivotTable_management(summary,"WATERSHED","gridcode","SUM_Shape_Area", config.temp_gdb + r"\floodplainCon_final")
+    util.log("Find area of floodplain impervious per watershed")
+    floodplainConn_final = config.temp_gdb + r"\floodplainConn_final"
+    groupby_list = ["WATERSHED"]
+    sum_field = "Shape_Area SUM"
+    sumBy_intersect(ImpA_floodplain_clip, config.subwatersheds, groupby_list, sum_field, floodplainConn_final)
+    # rename "SUM_Shape_Area" to "Floodplain_Impervious_Area"
 
-    # create and populate square footage for each landcover type
-    sqFoot_calc(floodplainConn_final)
+    # append floodplain area from floodplain_sumBy to floodplainConn_final - after renaming for clarity
 
-    util.log("Calc % vegetation")
-    rate_field = "Pcnt_canopy"
-    arcpy.AddField_management(floodplainConn_final,rate_field,"Double")
-    cursor_fields = ["Built","Low_Med","High",rate_field] # Water is NOT included in final calculation
-    with arcpy.da.UpdateCursor(floodplainConn_final,cursor_fields) as rows:
-                for row in rows:
-                    row[3] = (row[1]+row[2])/(row[0]+row[1]+row[2])*100
-                    rows.updateRow(row)
+    # FIX THIS - should be impervious within floodplain / total floodplain area NOT impervious within floodplain / total watershed area
+    util.log("Calc % impervious of the floodplain")
+    rate_field = "Pcnt_ImpA"
+    arcpy.AddField_management(floodplainConn_final, rate_field, "Double")
+    cursor_fields = ["SUM_Shape_Area", "Shape_Area", rate_field]
+    with arcpy.da.UpdateCursor(floodplainConn_final, cursor_fields) as cursor:
+        for row in cursor:
+            row[2] = (row[0]/row[1])*100
+            cursor.updateRow(row)
 
     util.log("Calc WHI score")
     score_field = "floodplainConn_score"
-    arcpy.AddField_management(floodplainConn_final, score_field, "DOUBLE")
-    with arcpy.da.UpdateCursor(floodplainConn_final, [rate_field, score_field]) as rows:
+    arcpy.AddField_management(ImpA_floodplain_clip, score_field, "DOUBLE")
+
+    with arcpy.da.UpdateCursor(ImpA_floodplain_clip, [rate_field, score_field]) as rows:
         for row in rows:
             row[1] = calc.fpCon_score(row[0])
             rows.updateRow(row)
@@ -861,7 +893,12 @@ def subwshed_Attach():
 
         arcpy.JoinField_management(subwshed_copy,join_field,table,join_field,input_fields)
 
+        # cap WHI score values at 10
         for field in input_fields:
+            with arcpy.da.UpdateCursor(subwshed_copy, field) as cursor:
+                for row in cursor:
+                    row[0] = calc.max_score_check(row[0])
+                    cursor.updateRow(row)
 
     util.log("Module complete")
 
