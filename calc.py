@@ -9,6 +9,11 @@
 # equations for WHI score calculations
 #-------------------------------------------------------------------------------
 
+
+def max_score_check(input):
+    if input > 10:
+        return 10
+
 def EIA_score(input):
     if input > 10:
         output = 10.5-25*(input/100)

@@ -14,8 +14,20 @@ arcpy.env.overwriteOutput = True
 
 
 # ancillary functions
+##
+##def sumBy(inputFC, sectFC, groupby_list, sum_field, output):
+##    # intersects two feature classes then dissolves them by specified field and aggregation values
+##    # groupby_list can be a list of one
+##    util.log("Aggregating values (sumBy)")
+##    util.log("   sumBy - intersecting")
+##    intersect = arcpy.Intersect_analysis([inputFC , sectFC],config.temp_gdb + r"\sect","NO_FID","#","INPUT")
+##    if arcpy.Exists(output):
+##        util.log("   deleting existing dissolve result")
+##        arcpy.Delete_management(output)
+##    util.log("   sumBy - dissolving")
+##    arcpy.Dissolve_management(intersect,output,groupby_list,sum_field,"MULTI_PART","DISSOLVE_LINES")
 
-def sumBy(inputFC, sectFC, groupby_list, sum_field, output):
+def sumBy_intersect(inputFC, sectFC, groupby_list, sum_field, output):
     # intersects two feature classes then dissolves them by specified field and aggregation values
     # groupby_list can be a list of one
     util.log("Aggregating values (sumBy)")
@@ -26,6 +38,13 @@ def sumBy(inputFC, sectFC, groupby_list, sum_field, output):
         arcpy.Delete_management(output)
     util.log("   sumBy - dissolving")
     arcpy.Dissolve_management(intersect,output,groupby_list,sum_field,"MULTI_PART","DISSOLVE_LINES")
+
+def sumBy_select(inputFC, selectFC, groupby_list, sum_field, output):
+    # selects inputFC (centroid) using the location of the selectFC then dissolves them by specified field and aggregation values
+    util.log("Aggregating values (sumBy)")
+    util.log("   sumBy - selecting")
+    selection = arcpy.SelectLayerByLocation_management(inputFC, "HAVE_THEIR_CENTER_IN", selectFC)
+    arcpy.Dissolve_management(selection,output,groupby_list,sum_field,"MULTI_PART","DISSOLVE_LINES")
 
 def rename_fields(table, out_table, new_name_by_old_name):
     """ Renames specified fields in input feature class/table
@@ -169,11 +188,10 @@ def EIA():
     ImpA_single = arcpy.MultipartToSinglepart_management(config.ImpA, "in_memory\ImpA_single")
     util.log("...clipping ImpA to city boundary")
     ImpA_cityclip = arcpy.Clip_analysis(ImpA_single,config.city_bound, "in_memory" + r"\ImpA_cityclip")
-    #ImpA_BMPclip = arcpy.Clip_analysis(ImpA_cityclip, ponds_swales , "in_memory" + r"\ImpA_BMPclip") # WHAT IS THIS? DELETE?
     ImpA_output = "in_memory" + r"\ImpA_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Area SUM"
-    sumBy(ImpA_cityclip, config.subwatersheds, groupby_list, sum_field, ImpA_output)
+    sumBy_intersect(ImpA_cityclip, config.subwatersheds, groupby_list, sum_field, ImpA_output)
 
     MIA_old = "SUM_Shape_Area"
     MIA_new = 'MIA_Area'
@@ -195,7 +213,7 @@ def EIA():
     groupby_list = ["WATERSHED"]
     sum_field = "assumed_area SUM"
     gs_output = config.temp_gdb + r"\gs_diss"
-    sumBy(green_streets,config.subwatersheds,groupby_list,sum_field,gs_output)
+    sumBy_select(green_streets,config.subwatersheds,groupby_list,sum_field,gs_output)
     greenstreet_old = "SUM_assumed_area"
     greenstreet_new = 'GreenStreet_Area'
     old_new = {greenstreet_old:greenstreet_new}
@@ -210,7 +228,7 @@ def EIA():
     BMP_output = "in_memory" + r"\bmp_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Area SUM"
-    sumBy(BMP_ImpAclip, config.subwatersheds, groupby_list, sum_field, BMP_output)
+    sumBy_intersect(BMP_ImpAclip, config.subwatersheds, groupby_list, sum_field, BMP_output)
 
     util.log("... renaming field")
     BMP_old = "SUM_Shape_Area"
@@ -227,7 +245,7 @@ def EIA():
     sump_output = "in_memory" + r"\sump_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Area SUM"
-    sumBy(sump_clip, config.subwatersheds,groupby_list,sum_field, sump_output)
+    sumBy_intersect(sump_clip, config.subwatersheds,groupby_list,sum_field, sump_output)
     sumps_old = "SUM_Shape_Area"
     sumps_new = 'Sump_Area'
     old_new = {sumps_old : sumps_new}
@@ -238,7 +256,7 @@ def EIA():
     roof_output = "in_memory" + r"\roof_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "SQ_FOOT SUM"
-    sumBy(config.ecoroof_pnt,config.subwatersheds,groupby_list,sum_field,roof_output)
+    sumBy_select(config.ecoroof_pnt,config.subwatersheds,groupby_list,sum_field,roof_output)
     ecoroof_old = "SUM_SQ_FOOT"
     ecoroof_new = 'Ecoroof_Area'
     old_new = {ecoroof_old : ecoroof_new}
@@ -261,7 +279,7 @@ def EIA():
     smf_output = config.temp_gdb + r"\smf_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "assumed_value SUM"
-    sumBy(ossma_impa_sect, config.subwatersheds, groupby_list, sum_field, smf_output)
+    sumBy_select(ossma_impa_sect, config.subwatersheds, groupby_list, sum_field, smf_output)
     # rename sum field and set result = to EIA_final - all other values will be appended to this fc
     util.log("Renaming fields")
     SMF_old = "SUM_assumed_value"
@@ -332,14 +350,14 @@ def streamConn():
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Length SUM"
     piped_byWshed = config.temp_gdb + r"\streamConn_final"
-    sumBy(streams_sub, config.subwatersheds, groupby_list, sum_field, piped_byWshed)
+    sumBy_intersect(streams_sub, config.subwatersheds, groupby_list, sum_field, piped_byWshed)
 
     # intersect and group full set
     util.log("Prepping full stream set")
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Length SUM"
     fullpipe = "in_memory" + r"\fullpiped_byWshed"
-    sumBy(config.streams, config.subwatersheds,groupby_list, sum_field, fullpipe)
+    sumBy_intersect(config.streams, config.subwatersheds,groupby_list, sum_field, fullpipe)
     old = "SUM_Shape_Length"
     new = 'Full_Length'
     old_new = {old : new}
@@ -749,7 +767,6 @@ def riparianInt():
                     row[3] = (row[2]/(row[0]+row[1]+row[2]))*100
                     rows.updateRow(row)
 
-
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     # Find count of stream/ street intersection per subwatershed
@@ -772,14 +789,14 @@ def riparianInt():
     groupby_list = ["WATERSHED"]
     sum_field = "Sect_Count SUM"
     crossing_sumBy = "in_memory" + r"\sect_sumBy"
-    sumBy(crossing_sect, config.subwatersheds,groupby_list, sum_field, crossing_sumBy)
+    sumBy_select(crossing_sect, config.subwatersheds,groupby_list, sum_field, crossing_sumBy)
 
     # Intersect streams with subwatersheds, group by WATERSHED and get summed area
     util.log("Intersecting streams with subwtwatersheds and grouping length by subwatershed")
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Length SUM"
     stream_sumBy = config.temp_gdb + r"\riparianInt_final"
-    sumBy(streams_clip,config.subwatersheds, groupby_list, sum_field, stream_sumBy)
+    sumBy_intersect(streams_clip,config.subwatersheds, groupby_list, sum_field, stream_sumBy)
 
     # Append information into one place
     util.log("Add crossing counts to stream length data")
@@ -842,12 +859,10 @@ def subwshed_Attach():
         for field in fields:
             input_fields.append(field)
 
-    #subwshed_fields = [f.name for f in arcpy.ListFields(subwshed_copy)]
-    #for field in input_fields:
-    #    if field in subwshed_fields:
-    #        arcpy.DeleteField_management(field)
-
         arcpy.JoinField_management(subwshed_copy,join_field,table,join_field,input_fields)
+
+        for field in input_fields:
+
     util.log("Module complete")
 
 if __name__ == '__main__':
