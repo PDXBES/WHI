@@ -35,8 +35,8 @@ def canopy_scores(input):
     output = 0.2195* input
     return output
 
-def fpCon_score(input):
-    if input < 20:
+def fpCon_score(input): # still need to verify this with Chris P/ Jen A
+    if input > 20:
         output = 0
     else:
         output = -0.000009*(input**3)+0.00206*(input**2)-0.0092*(input)-0.57

@@ -28,7 +28,8 @@ city_bound = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.portland_pdx"
 
 # the ones in this group are static/ manually maintained - beware or resolve
 floodplain_clip = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Floodplain\Floodplain_clip.shp"
-stream_access_poly = r"\\besfile1\grp104\SID\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons"
+#stream_access_poly = r"\\besfile1\grp104\SID\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons"
+stream_access_poly = r"\\besfile1\StormWaterProgram\Data\GIS\Data\Stream_Access\Stream_Accessibility_2019_06.shp"
 subwatersheds = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Watersheds with Willamette Mainstem and Tribs\Portland_Watersheds_Willamette_Tribs_and_Mainstem.shp"
 culvert_retrofit = r"\\besfile1\GRP104\SID\20-Monitoring\WSHIndex\PercentPiped\Retrofitted Culverts data.xlsx"
 BMP_drainage = r"\\besfile1\Modeling\GridMaster\BMP\PRF\ARC\Working\Drainage_Delineation\DelineationFinal_results.gdb\Delineation_04_2015"

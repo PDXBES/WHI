@@ -14,18 +14,6 @@ arcpy.env.overwriteOutput = True
 
 
 # ancillary functions
-##
-##def sumBy(inputFC, sectFC, groupby_list, sum_field, output):
-##    # intersects two feature classes then dissolves them by specified field and aggregation values
-##    # groupby_list can be a list of one
-##    util.log("Aggregating values (sumBy)")
-##    util.log("   sumBy - intersecting")
-##    intersect = arcpy.Intersect_analysis([inputFC , sectFC],config.temp_gdb + r"\sect","NO_FID","#","INPUT")
-##    if arcpy.Exists(output):
-##        util.log("   deleting existing dissolve result")
-##        arcpy.Delete_management(output)
-##    util.log("   sumBy - dissolving")
-##    arcpy.Dissolve_management(intersect,output,groupby_list,sum_field,"MULTI_PART","DISSOLVE_LINES")
 
 def sumBy_intersect(inputFC, sectFC, groupby_list, sum_field, output):
     # intersects two feature classes then dissolves them by specified field and aggregation values
@@ -45,8 +33,10 @@ def sumBy_select(inputFC, selectFC, groupby_list, sum_field, output):
     # use _select for pre-filled values (non geometry derived)
     util.log("Aggregating values (sumBy)")
     util.log("   sumBy - selecting")
-    selection = arcpy.SelectLayerByLocation_management(inputFC, "HAVE_THEIR_CENTER_IN", selectFC)
-    arcpy.Dissolve_management(selection,output,groupby_list,sum_field,"MULTI_PART","DISSOLVE_LINES")
+    #input_layer = arcpy.MakeFeatureLayer_management(inputFC, "in_memory\inputFC")
+    sj = arcpy.SpatialJoin_analysis(inputFC, selectFC, config.temp_gdb + r"\sj", "JOIN_ONE_TO_ONE", "KEEP_ALL", "", "HAVE_THEIR_CENTER_IN")
+    # selection = arcpy.SelectLayerByLocation_management(input_layer, "HAVE_THEIR_CENTER_IN", selectFC)
+    arcpy.Dissolve_management(sj,output,groupby_list,sum_field,"MULTI_PART","DISSOLVE_LINES")
 
 def rename_fields(table, out_table, new_name_by_old_name):
     """ Renames specified fields in input feature class/table
@@ -175,6 +165,7 @@ def EIA():
     arcpy.env.overwriteOutput = True
 
     util.log("Starting EIA module")
+    print arcpy.Exists(config.OSSMA)
 
     #subset inputs
     gs_layer = arcpy.MakeFeatureLayer_management(config.collection_lines,"gs_layer","UNITTYPE = 'CHGRSTFAC'")
@@ -185,6 +176,7 @@ def EIA():
 
     # create mapped ImpA by subwatershed
     util.log("Creating mapped ImpA")
+    print arcpy.Exists(config.OSSMA)
     # intersect bonks on multipart
     util.log("...converting multipart ImpA to singlepart")
     ImpA_single = arcpy.MultipartToSinglepart_management(config.ImpA, "in_memory\ImpA_single")
@@ -203,8 +195,10 @@ def EIA():
 
     # create managed ImpA by subwatershed - for each input
     util.log("Creating managed ImpA ...")
+    print arcpy.Exists(config.OSSMA)
 
     util.log("... green street piece")
+    print arcpy.Exists(config.OSSMA)
     # uses global, assumed  value of 3500 sqft
     aa_field = "assumed_area"
     arcpy.AddField_management(green_streets, aa_field, "LONG")
@@ -223,6 +217,7 @@ def EIA():
     rename_fields(gs_output,gs_output_new , old_new)
 
     util.log("... BMP managed ImpA piece")
+    print arcpy.Exists(config.OSSMA)
     # clip delineations to the mapped impervious area (which is already clipped to the city boundary)
     util.log("clipping BMP basins to ImpA bounds")
     BMP_ImpAclip = arcpy.Clip_analysis(ponds_swales,ImpA_cityclip, "in_memory" + r"\BMP_ImpAclip")
@@ -240,6 +235,7 @@ def EIA():
     rename_fields(BMP_output , BMP_output_new , old_new)
 
     util.log("... sumped area piece")
+    print arcpy.Exists(config.OSSMA)
     # clip delineations to the mapped impervious area (which is already clipped to the city boundary)
     util.log("clipping sump basins to ImpA bounds")
     sump_clip = arcpy.Clip_analysis(config.sump_delin, ImpA_cityclip, "in_memory" + r"\sump_ImpAclip")
@@ -255,6 +251,7 @@ def EIA():
     rename_fields(sump_output , sump_output_new , old_new)
 
     util.log("... ecoroofs piece")
+    print arcpy.Exists(config.OSSMA)
     roof_output = "in_memory" + r"\roof_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "SQ_FOOT SUM"
@@ -267,14 +264,17 @@ def EIA():
 
 # ----------------------- QC
     util.log("... private SMF piece")
-    smf_field = "assumed_value"
+    print arcpy.Exists(config.OSSMA)
     # intersect OSSMA and ImpA
     ossma_impa_sect = arcpy.Intersect_analysis([config.OSSMA , config.ImpA],config.temp_gdb + r"\ossma_impa_sect","NO_FID","#","INPUT")
     # add and calc field: reduced_ImpA = OSSMA.final_red * ShapeArea
     arcpy.AddField_management(ossma_impa_sect, "reduced_ImpA", "DOUBLE")
     with arcpy.da.UpdateCursor(ossma_impa_sect, ["Final_Red", "Shape_Area", "reduced_ImpA"]) as cursor:
         for row in cursor:
-            row[2] = (row[0]/100)*row[1]
+            if row[0] != None:
+                row[2] = (row[0]/100)*row[1] # reduce impA if there is a final reduction value
+            else:
+                row[2] = row[1] # if no final reduction value then use original impA
             cursor.updateRow(row)
     # run sumBy to sum reduced_ImpA area to the watershed
     util.log("Summing watershed area values")
@@ -298,7 +298,8 @@ def EIA():
     rename_fields(config.subwatersheds, new_subwsheds ,old_new)
 
     # combine area fields into one location for calculation
-    util.log("Adding  area fields to the private SMF output")
+    util.log("Adding area fields to the private SMF output")
+    arcpy.Exists(config.OSSMA)
     join_field = "WATERSHED"
     arcpy.JoinField_management(EIA_final,join_field,gs_output_new,join_field,greenstreet_new)
     arcpy.JoinField_management(EIA_final,join_field,BMP_output_new,join_field,BMP_new)
@@ -526,6 +527,11 @@ def floodplainCon():
     sum_field = "Shape_Area SUM"
     sumBy_intersect(config.floodplain_clip, config.subwatersheds, groupby_list, sum_field, floodplain_sumBy)
     # rename "SUM_Shape_Area" to "Total_Floodplain_Area"
+    old_name = "SUM_Shape_Area"
+    new_name = "Total_Floodplain_Area"
+    old_new = {old_name : new_name}
+    floodplain_sumBy_rename = config.temp_gdb + r"\floodplain_sumBy_rename"
+    rename_fields(floodplain_sumBy, floodplain_sumBy_rename ,old_new)
 
     util.log("Find area of floodplain impervious per watershed")
     floodplainConn_final = config.temp_gdb + r"\floodplainConn_final"
@@ -533,24 +539,29 @@ def floodplainCon():
     sum_field = "Shape_Area SUM"
     sumBy_intersect(ImpA_floodplain_clip, config.subwatersheds, groupby_list, sum_field, floodplainConn_final)
     # rename "SUM_Shape_Area" to "Floodplain_Impervious_Area"
+    old_name = "SUM_Shape_Area"
+    new_name = "Floodplain_Impervious_Area"
+    old_new = {old_name : new_name}
+    floodplainConn_final_rename = config.temp_gdb + r"\floodplainConn_final_rename"
+    rename_fields(floodplain_sumBy, floodplainConn_final_rename ,old_new)
 
-    # append floodplain area from floodplain_sumBy to floodplainConn_final - after renaming for clarity
+    # append floodplain area from floodplain_sumBy to floodplainConn_final  *********
+    arcpy.JoinField_management(floodplainConn_final_rename, "WATERSHED", floodplain_sumBy, "WATERSHED", ["Total_Floodplain_Area"])
 
-    # FIX THIS - should be impervious within floodplain / total floodplain area NOT impervious within floodplain / total watershed area
     util.log("Calc % impervious of the floodplain")
     rate_field = "Pcnt_ImpA"
-    arcpy.AddField_management(floodplainConn_final, rate_field, "Double")
-    cursor_fields = ["SUM_Shape_Area", "Shape_Area", rate_field]
-    with arcpy.da.UpdateCursor(floodplainConn_final, cursor_fields) as cursor:
+    arcpy.AddField_management(floodplainConn_final_rename, rate_field, "Double")
+    cursor_fields = ["Floodplain_Impervious_Area", "Total_Floodplain_Area", rate_field]
+    with arcpy.da.UpdateCursor(floodplainConn_final_rename, cursor_fields) as cursor:
         for row in cursor:
             row[2] = (row[0]/row[1])*100
             cursor.updateRow(row)
 
     util.log("Calc WHI score")
     score_field = "floodplainConn_score"
-    arcpy.AddField_management(ImpA_floodplain_clip, score_field, "DOUBLE")
+    arcpy.AddField_management(floodplainConn_final_rename, score_field, "DOUBLE")
 
-    with arcpy.da.UpdateCursor(ImpA_floodplain_clip, [rate_field, score_field]) as rows:
+    with arcpy.da.UpdateCursor(floodplainConn_final_rename, [rate_field, score_field]) as rows:
         for row in rows:
             row[1] = calc.fpCon_score(row[0])
             rows.updateRow(row)
@@ -559,7 +570,7 @@ def floodplainCon():
     arcpy.Delete_management("in_memory")
 
     # convert output to table if needed
-    util.tableTo_primaryOutput(floodplainConn_final)
+    util.tableTo_primaryOutput(floodplainConn_final_rename)
 
     util.log("Module complete ---------------------------------------------------------------")
 
