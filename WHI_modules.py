@@ -169,7 +169,7 @@ def EIA():
 
     #subset inputs
     gs_layer = arcpy.MakeFeatureLayer_management(config.collection_lines,"gs_layer","UNITTYPE = 'CHGRSTFAC'")
-    green_streets = arcpy.CopyFeatures_management(gs_layer, config.temp_gdb + r"\green_streets")
+    green_streets_copy = arcpy.CopyFeatures_management(gs_layer, config.temp_gdb + r"\green_streets_copy")
     ponds_swales = arcpy.MakeFeatureLayer_management(config.BMP_drainage,"ponds_swales","Gen_Type in ( 'CHANNEL - WATER QUALITY SWALE' , 'Detention Pond - Dry' , 'Detention Pond - Wet' , 'POND' , 'Swale' )")
     sumps =  arcpy.MakeFeatureLayer_management(config.BES_UIC,"sumps","opsStatus = 'AC'")
     private_SMF = arcpy.Copy_management(config.privateSMF, config.temp_gdb + r"\private_SMF")
@@ -181,8 +181,8 @@ def EIA():
     util.log("...converting multipart ImpA to singlepart")
     ImpA_single = arcpy.MultipartToSinglepart_management(config.ImpA, "in_memory\ImpA_single")
     util.log("...clipping ImpA to city boundary")
-    ImpA_cityclip = arcpy.Clip_analysis(ImpA_single,config.city_bound, "in_memory" + r"\ImpA_cityclip")
-    ImpA_output = "in_memory" + r"\ImpA_diss"
+    ImpA_cityclip = arcpy.Clip_analysis(ImpA_single,config.city_bound, config.temp_gdb + r"\ImpA_cityclip")
+    ImpA_output = config.temp_gdb + r"\ImpA_diss"
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Area SUM"
     sumBy_intersect(ImpA_cityclip, config.subwatersheds, groupby_list, sum_field, ImpA_output)
@@ -201,15 +201,15 @@ def EIA():
     print arcpy.Exists(config.OSSMA)
     # uses global, assumed  value of 3500 sqft
     aa_field = "assumed_area"
-    arcpy.AddField_management(green_streets, aa_field, "LONG")
-    with arcpy.da.UpdateCursor(green_streets, aa_field) as rows:
+    arcpy.AddField_management(green_streets_copy, aa_field, "LONG")
+    with arcpy.da.UpdateCursor(green_streets_copy, aa_field) as rows:
         for row in rows:
             row[0] = 3500
             rows.updateRow(row)
     groupby_list = ["WATERSHED"]
     sum_field = "assumed_area SUM"
     gs_output = config.temp_gdb + r"\gs_diss"
-    sumBy_select(green_streets,config.subwatersheds,groupby_list,sum_field,gs_output)
+    sumBy_select(green_streets_copy,config.subwatersheds,groupby_list,sum_field,gs_output)
     greenstreet_old = "SUM_assumed_area"
     greenstreet_new = 'GreenStreet_Area'
     old_new = {greenstreet_old:greenstreet_new}
@@ -280,11 +280,11 @@ def EIA():
     util.log("Summing watershed area values")
     smf_output = config.temp_gdb + r"\smf_diss"
     groupby_list = ["WATERSHED"]
-    sum_field = "assumed_value SUM"
+    sum_field = "reduced_ImpA SUM"
     sumBy_select(ossma_impa_sect, config.subwatersheds, groupby_list, sum_field, smf_output)
-    # rename sum field and set result = to EIA_final - all other values will be appended to this fc
+    # rename sum field and set result fc = to EIA_final - all other values will be appended to this fc
     util.log("Renaming fields")
-    SMF_old = "SUM_assumed_value"
+    SMF_old = "SUM_reduced_ImpA"
     SMF_new = 'SMF_Area'
     old_new = {SMF_old : SMF_new}
     EIA_final = config.temp_gdb + r"\EIA_final"
@@ -294,7 +294,7 @@ def EIA():
     sum_field = 'Shape_Area'
     subwshed_new = 'Subwshed_Area'
     old_new = {sum_field : subwshed_new}
-    new_subwsheds = "in_memory" + r"\subwatersheds"
+    new_subwsheds = config.temp_gdb + r"\subwatersheds"
     rename_fields(config.subwatersheds, new_subwsheds ,old_new)
 
     # combine area fields into one location for calculation
@@ -317,7 +317,8 @@ def EIA():
     arcpy.AddField_management(EIA_final, "Pcnt_EIA", "DOUBLE")
     with arcpy.da.UpdateCursor(EIA_final, ["Pcnt_EIA", greenstreet_new , BMP_new , sumps_new , ecoroof_new , SMF_new , MIA_new ,subwshed_new]) as rows:
         for row in rows:
-            row[0] = (row[6]- (row[1]+row[2]+row[3]+row[4]+row[5]))/row[7]*100
+            if row[7] != None or row[7] != 0:
+                row[0] = (row[6]- (row[1]+row[2]+row[3]+row[4]+row[5]))/row[7]*100
             rows.updateRow(row)
 
     # convert values in Pcnt EIA field to WHI codes (new field)
@@ -543,10 +544,10 @@ def floodplainCon():
     new_name = "Floodplain_Impervious_Area"
     old_new = {old_name : new_name}
     floodplainConn_final_rename = config.temp_gdb + r"\floodplainConn_final_rename"
-    rename_fields(floodplain_sumBy, floodplainConn_final_rename ,old_new)
+    rename_fields(floodplainConn_final, floodplainConn_final_rename ,old_new)
 
     # append floodplain area from floodplain_sumBy to floodplainConn_final  *********
-    arcpy.JoinField_management(floodplainConn_final_rename, "WATERSHED", floodplain_sumBy, "WATERSHED", ["Total_Floodplain_Area"])
+    arcpy.JoinField_management(floodplainConn_final_rename, "WATERSHED", floodplain_sumBy_rename, "WATERSHED", ["Total_Floodplain_Area"])
 
     util.log("Calc % impervious of the floodplain")
     rate_field = "Pcnt_ImpA"
