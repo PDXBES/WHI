@@ -28,7 +28,7 @@ city_bound = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.portland_pdx"
 
 # the ones in this group are static/ manually maintained - beware or resolve
 floodplain_clip = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Floodplain\Floodplain_clip.shp"
-#stream_access_poly = r"\\besfile1\grp104\SID\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons"
+#stream_access_poly = r"\\besfile1\grp104\SID\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons" # OLD
 stream_access_poly = r"\\besfile1\StormWaterProgram\Data\GIS\Data\Stream_Access\Stream_Accessibility_2019_06.shp"
 subwatersheds = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Watersheds with Willamette Mainstem and Tribs\Portland_Watersheds_Willamette_Tribs_and_Mainstem.shp"
 culvert_retrofit = r"\\besfile1\GRP104\SID\20-Monitoring\WSHIndex\PercentPiped\Retrofitted Culverts data.xlsx"
@@ -44,6 +44,7 @@ ecoroof_pnt = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.ecoroof_pts_bes_pdx"
 privateSMF = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.priv_mip_strm_facs_bes_pdx"
 streams = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.stream_lines_pdx"
 canopy = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.VEGETATION_2007_METRO"
+canopy_2014 = egh_raster + r"\egh_raster.ARCMAP_ADMIN.canopy_L14_metro"
 river_depth = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.river_depths_ohw_pdx"
 waterbodies = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.waterbodies_pdx"
 mst_dscs = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.mst_dsc_bes_pdx"

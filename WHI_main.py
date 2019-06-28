@@ -18,13 +18,13 @@ if __name__ == '__main__':
     if not arcpy.Exists(config.temp_gdb):
         arcpy.CreateFileGDB_management(os.path.dirname(config.temp_gdb), os.path.basename(config.temp_gdb))
 
-    util.delete_gdb_contents(config.temp_gdb)
+    #util.delete_gdb_contents(config.temp_gdb)
 
     #WHI_modules.treeCanopy()
     #WHI_modules.riparianInt()
-    WHI_modules.EIA()
+    #WHI_modules.EIA()
     #WHI_modules.streamConn() # need to integrate culvert exclusions - see list from Jen
-    #WHI_modules.floodplainCon()
+    WHI_modules.floodplainCon()
     #WHI_modules.shallowWaterRef()
     #WHI_modules.streamAccess()
 

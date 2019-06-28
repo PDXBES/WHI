@@ -21,7 +21,7 @@ if not arcpy.Exists(config.temp_gdb):
 # run ALL modules in the order specified in the following list
 # if one fails, print the error and move on to the next until done
 
-"""
+
 util.delete_gdb_contents(config.temp_gdb)
 
 modules = [
@@ -47,7 +47,6 @@ for module in modules:
         util.log(msg1)
         util.log(msg2)
         util.log(msg3)
-"""
 
 # if other modules successful, run these
 #WHI_modules.subwshed_Attach()
