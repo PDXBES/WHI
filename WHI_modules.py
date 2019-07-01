@@ -79,63 +79,63 @@ def NullNumber_toZero(inputFC):
                     row[0] = 0
                     rows.updateRow(row)
 
-def createVeg_combo(comparison_fc, output):
-    # creates a raster combining the 2007 Metro veg and a specified feature class (for WHI use = the subwatersheds)
-    # converts output to vector
-    # input 'comparison_fc' = the feature class to be compared - currently assumed to be vector and converted to raster
-    # function that calls this uses logic so decide whether to use existing version or rerun ...
-    # most likely don't need to rerun unless new veg source is used OR subwatershed bounds change
-
-    # clip landcover to subwatersehds and Reclassify the results (because extra values are added after the clip for some reason (??) )
-    util.log("Reclassifying landcover raster")
-    arcpy.CheckOutExtension("Spatial")
-    # assign questionable, unnecessary values to the main 4 values (built, low veg, high veg, water)
-    arcpy.env.workspace = config.temp_gdb
-    reclass_mapping = "0 1;1 1;2 2;3 3;4 4;5 4;6 1;7 1;8 1"
-    veg_reclass = arcpy.sa.Reclassify(config.canopy,"Value", reclass_mapping,"DATA")
-
-    # convert the comparison feature class to raster
-    util.log("Converting comparison feature class to raster")
-    arcpy.env.snapRaster = config.canopy
-    arcpy.env.extent = "MAXOF"
-    Comparison_raster = arcpy.FeatureToRaster_conversion(comparison_fc,"WATERSHED",config.temp_gdb + r"\wshed_toRast","3")
-    tempComparison_raster = arcpy.sa.Raster(Comparison_raster)
-
-    # combine landcover and comparison rasters
-    util.log("Combining rasters")
-    # multiply Comparison raster Value *100 so that the value can be parsed with the vegetation value
-    # adding rasters results in NoData where there is not a value from BOTH therefore this step also serves to clip the raster to the subwatersheds
-    combo = veg_reclass + (tempComparison_raster*100)
-    combo.save(config.temp_gdb + r"\raster_combo")
-    arcpy.CheckInExtension("Spatial")
-
-    util.log("Converting the combo to vector and clipping")
-    util.log("- converting")
-    veg_vect = arcpy.RasterToPolygon_conversion(combo, config.canopy_combo_vect)
-
-    # convert watershed code (int) to text
-    # this takes almost an hour to run - why?
-    util.log("Adding and populating WATERSHED field")
-    arcpy.AddField_management(veg_vect,"WATERSHED","TEXT",'','',20)
-    with arcpy.da.UpdateCursor(veg_vect, ["gridcode","WATERSHED"]) as rows:
-        for row in rows:
-            if row[0] < 200:
-                row[1] = config.wshed_dict[100]
-            elif row[0] > 199 and row[0] < 300:
-                row[1] = config.wshed_dict[200]
-            elif row[0] > 299 and row[0] < 400:
-                row[1] = config.wshed_dict[300]
-            elif row[0] > 399 and row[0] < 500:
-                row[1] = config.wshed_dict[400]
-            elif row[0] > 499 and row[0] < 600:
-                row[1] = config.wshed_dict[500]
-            else:
-                row[1] = config.wshed_dict[600]
-            rows.updateRow(row)
-
-    util.log("Repairing geometry")
-    arcpy.RepairGeometry_management(veg_vect)
-    arcpy.RepairGeometry_management(veg_vect)
+##def createVeg_combo(comparison_fc, output):
+##    # creates a raster combining the 2007 Metro veg and a specified feature class (for WHI use = the subwatersheds)
+##    # converts output to vector
+##    # input 'comparison_fc' = the feature class to be compared - currently assumed to be vector and converted to raster
+##    # function that calls this uses logic so decide whether to use existing version or rerun ...
+##    # most likely don't need to rerun unless new veg source is used OR subwatershed bounds change
+##
+##    # clip landcover to subwatersehds and Reclassify the results (because extra values are added after the clip for some reason (??) )
+##    util.log("Reclassifying landcover raster")
+##    arcpy.CheckOutExtension("Spatial")
+##    # assign questionable, unnecessary values to the main 4 values (built, low veg, high veg, water)
+##    arcpy.env.workspace = config.temp_gdb
+##    reclass_mapping = "0 1;1 1;2 2;3 3;4 4;5 4;6 1;7 1;8 1"
+##    veg_reclass = arcpy.sa.Reclassify(config.canopy,"Value", reclass_mapping,"DATA")
+##
+##    # convert the comparison feature class to raster
+##    util.log("Converting comparison feature class to raster")
+##    arcpy.env.snapRaster = config.canopy
+##    arcpy.env.extent = "MAXOF"
+##    Comparison_raster = arcpy.FeatureToRaster_conversion(comparison_fc,"WATERSHED",config.temp_gdb + r"\wshed_toRast","3")
+##    tempComparison_raster = arcpy.sa.Raster(Comparison_raster)
+##
+##    # combine landcover and comparison rasters
+##    util.log("Combining rasters")
+##    # multiply Comparison raster Value *100 so that the value can be parsed with the vegetation value
+##    # adding rasters results in NoData where there is not a value from BOTH therefore this step also serves to clip the raster to the subwatersheds
+##    combo = veg_reclass + (tempComparison_raster*100)
+##    combo.save(config.temp_gdb + r"\raster_combo")
+##    arcpy.CheckInExtension("Spatial")
+##
+##    util.log("Converting the combo to vector and clipping")
+##    util.log("- converting")
+##    veg_vect = arcpy.RasterToPolygon_conversion(combo, config.canopy_combo_vect)
+##
+##    # convert watershed code (int) to text
+##    # this takes almost an hour to run - why?
+##    util.log("Adding and populating WATERSHED field")
+##    arcpy.AddField_management(veg_vect,"WATERSHED","TEXT",'','',20)
+##    with arcpy.da.UpdateCursor(veg_vect, ["gridcode","WATERSHED"]) as rows:
+##        for row in rows:
+##            if row[0] < 200:
+##                row[1] = config.wshed_dict[100]
+##            elif row[0] > 199 and row[0] < 300:
+##                row[1] = config.wshed_dict[200]
+##            elif row[0] > 299 and row[0] < 400:
+##                row[1] = config.wshed_dict[300]
+##            elif row[0] > 399 and row[0] < 500:
+##                row[1] = config.wshed_dict[400]
+##            elif row[0] > 499 and row[0] < 600:
+##                row[1] = config.wshed_dict[500]
+##            else:
+##                row[1] = config.wshed_dict[600]
+##            rows.updateRow(row)
+##
+##    util.log("Repairing geometry")
+##    arcpy.RepairGeometry_management(veg_vect)
+##    arcpy.RepairGeometry_management(veg_vect)
 
 def sqFoot_calc(input):
     # fills the square footage values for each type of land cover
@@ -160,8 +160,6 @@ def sqFoot_calc(input):
 
 def EIA():
     # Effective Impervious Area
-
-    # !!! Q - clip all managed ImpA (coming from geometry) to mapped ImpA?  - if not might extend beyond mapped
 
     arcpy.env.overwriteOutput = True
 
@@ -392,91 +390,33 @@ def streamConn():
 def treeCanopy():
     util.log("Starting treeCanopy module")
 
-    # per Chris P - remove pieces about DSCs/zoning as they were speculative and don't get use
+    # per Chris P - remove pieces about DSCs/zoning as they were speculative and don't get used
     # replace 2007 veg with 2014 as we only need total canopy NOT broken out further by type
     # no longer need to use fishnetChop or createVegCombo
 
-    # use 2014 canopy and zonal stats with city_union as input to get an area by GenEX - have to run separate for each wshed?
-    # also need to attach subwhed values to be able to sum by subwshed
+    arcpy.CheckOutExtension("Spatial")
+    treeCanopy_final = arcpy.gp.ZonalStatisticsAsTable_sa(config.subwatersheds,"WATERSHED", config.canopy_2014, config.temp_gdb + r"\canopy_stats", "DATA", "SUM")
+    arcpy.CheckInExtension("Spatial")
+    # note - result field is AREA
+    # compare AREA to subwatersheds Shape_Area
+    arcpy.JoinField_management(treeCanopy_final,"WATERSHED",config.subwatersheds,"WATERSHED","Shape_Area")
 
-##    # test if the "combo" canopy already exists, if not create vectorized canopy version
-##    veg_vect = config.canopy_combo_vect
-##    if arcpy.Exists(config.canopy_combo_vect) == False:
-##        util.log("Creating subwatershed/ vegetation raster combo")
-##        createVeg_combo(config.subwatersheds, veg_vect)
-
-##    # attach Landuse info here - prior to summary/ pivot table work -
-##    # dissolve DSC data and then intersect with landcover data - IS THERE NOW A BETTER ALTERNATIVE TO DSCs?
-##    # intersect takes about 30 min
-##    util.log ("Preparing landuse data and adding to the land cover data")
-##    dsc_layer = arcpy.MakeFeatureLayer_management(config.mst_dscs,"dsc_layer")
-##    dsc_select = arcpy.SelectLayerByLocation_management(dsc_layer,"INTERSECT",config.city_bound)
-##    dsc_city = arcpy.CopyFeatures_management(dsc_select, config.temp_gdb + r"\dsc_city")
-##
-##    util.log("Unioning DSCs with City Boundary")
-##    in_features = [dsc_city, config.city_bound]
-##    city_union = arcpy.Union_analysis(in_features,config.temp_gdb + r"\city_union","NO_FID","","GAPS")
-##    util.log("Filling non DSC area with 'NONE' value")
-##    with arcpy.da.UpdateCursor(city_union, ["GenEX"]) as rows:
-##        for row in rows:
-##            if row[0] == "":
-##                row[0] = "NONE"
-##            elif row[0] is None:
-##                row[0] = "NONE"
-##            rows.updateRow(row)
-##
-##    arcpy.RepairGeometry_management(city_union)
-##    arcpy.RepairGeometry_management(city_union)
-
-##    # chop up the canopy and intersect with the DSCs to get the zoning attached
-##    sect_result = util.fishnetChop(city_union)
-
-##    util.log("Creating summary table")
-##    summary = arcpy.Statistics_analysis(sect_result,config.temp_gdb + r"\canopy_summary_table","Shape_Area SUM", "WATERSHED;gridcode;GenEX")
-##
-##    util.log("Creating pivot table")
-##    treeCanopy = arcpy.PivotTable_management(summary,"WATERSHED;GenEX","gridcode","SUM_Shape_Area", config.temp_gdb + r"\treeCanopy")
-
-##    # create and populate square footage for each landcover type
-##    sqFoot_calc(treeCanopy)
-
-##    # attach original wshed geometry to get total Shape_Area
-##    arcpy.JoinField_management(treeCanopy,"WATERSHED",config.subwatersheds,"WATERSHED","Shape_Area")
-##
-##    # Calculate % canopy per subwatershed - this is for the result broken out by zoning
-##    util.log("Calc % vegetation")
-##    rate_field = "Pcnt_canopy"
-##    arcpy.AddField_management(treeCanopy,rate_field,"Double")
-##    cursor_fields = ["Built","Low_Med","High",rate_field] # Water is NOT included in final calculation
-##    with arcpy.da.UpdateCursor(treeCanopy,cursor_fields) as rows:
-##                for row in rows:
-##                    row[3] = (row[2]/(row[0]+row[1]+row[2]))*100
-##                    rows.updateRow(row)
-
-##    util.log("Cleanup")
-##    remove_fields = [field.name for field in arcpy.ListFields(treeCanopy,"gridcode*")]
-##    arcpy.DeleteField_management(treeCanopy,remove_fields)
-
-##    # group result by subwatershed
-##    treeCanopy_final = arcpy.Statistics_analysis(treeCanopy,config.primary_output + r"\treeCanopy_final","Built SUM; Low_Med SUM; High SUM", "WATERSHED")
-##
-##    # Calculate % canopy per subwatershed
-##    util.log("Calc % vegetation")
-##    rate_field = "Pcnt_canopy"
-##    arcpy.AddField_management(treeCanopy_final,rate_field,"Double")
-##    cursor_fields = ["SUM_Built","SUM_Low_Med","SUM_High",rate_field] # Water is NOT included in final calculation
-##    with arcpy.da.UpdateCursor(treeCanopy_final,cursor_fields) as rows:
-##                for row in rows:
-##                    row[3] = (row[2]/(row[0]+row[1]+row[2]))*100
-##                    rows.updateRow(row)
+    # Calculate % canopy per subwatershed
+    util.log("Calc % canopy")
+    rate_field = "Pcnt_canopy"
+    arcpy.AddField_management(treeCanopy_final, rate_field, "Double")
+    with arcpy.da.UpdateCursor(treeCanopy_final, [rate_field, "AREA", "Shape_Area"]) as cursor:
+        for row in cursor:
+            row[0] = (row[1]/row[2]) * 100
+            cursor.updateRow(row)
 
     util.log("Calc WHI score")
     score_field = "treeCanopy_score"
     arcpy.AddField_management(treeCanopy_final, score_field, "DOUBLE")
-    with arcpy.da.UpdateCursor(treeCanopy_final, [rate_field, score_field]) as rows:
-        for row in rows:
+    with arcpy.da.UpdateCursor(treeCanopy_final, [rate_field, score_field]) as cursor:
+        for row in cursor:
             row[1] = calc.canopy_scores(row[0])
-            rows.updateRow(row)
+            cursor.updateRow(row)
 
     util.log("Cleaning up")
     arcpy.Delete_management("in_memory")

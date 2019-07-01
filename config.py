@@ -28,7 +28,6 @@ city_bound = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.portland_pdx"
 
 # the ones in this group are static/ manually maintained - beware or resolve
 floodplain_clip = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Floodplain\Floodplain_clip.shp"
-#stream_access_poly = r"\\besfile1\grp104\SID\13-STAFF\chrisp\culverts\Stream_Accessibility.mdb\StreamAccessPolygons" # OLD
 stream_access_poly = r"\\besfile1\StormWaterProgram\Data\GIS\Data\Stream_Access\Stream_Accessibility_2019_06.shp"
 subwatersheds = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Watersheds with Willamette Mainstem and Tribs\Portland_Watersheds_Willamette_Tribs_and_Mainstem.shp"
 culvert_retrofit = r"\\besfile1\GRP104\SID\20-Monitoring\WSHIndex\PercentPiped\Retrofitted Culverts data.xlsx"
@@ -43,7 +42,6 @@ BES_UIC = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.uic_bes_pdx"
 ecoroof_pnt = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.ecoroof_pts_bes_pdx"
 privateSMF = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.priv_mip_strm_facs_bes_pdx"
 streams = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.stream_lines_pdx"
-canopy = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.VEGETATION_2007_METRO"
 canopy_2014 = egh_raster + r"\egh_raster.ARCMAP_ADMIN.canopy_L14_metro"
 river_depth = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.river_depths_ohw_pdx"
 waterbodies = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.waterbodies_pdx"
@@ -55,9 +53,8 @@ canopy_combo_vect = primary_input + r"\canopy_combo_vector"
 fishnet = primary_input + r"\fishnet_city"
 
 # other - lists and dictionaries
-vect_archive_list = [subwatersheds,EDT_reaches,ImpA, BES_UIC, BMP_drainage, ecoroof_pnt, privateSMF, streams, canopy_combo_vect, floodplain_clip, waterbodies]
-# removed stream_access from vect_archive_list - do we need?
-rast_archive_list = [canopy, river_depth]
+vect_archive_list = [subwatersheds,EDT_reaches,ImpA, BES_UIC, BMP_drainage, ecoroof_pnt, privateSMF, streams, floodplain_clip, waterbodies, stream_access_poly, sump_delin]
+rast_archive_list = [canopy_2014, river_depth]
 smf_dict = {'Constructed Treatment Wetland': 43560, 'Detention Pond - Dry': 43560, 'Detention Pond - Wet': 43560, 'Drywell': 2000, 'Infiltration Trench': 2000, 'Soakage Trench': 2000, 'Flow Through Planter Box': 2000, 'Infiltration Planter Box': 2000, 'Infiltration Baxin': 2000, 'Swale': 2000, 'Stormwater Reuse System': 2000, 'Porous Pavement': 27500}
 wshed_dict = {100: "Columbia Slough", 200: "Johnson Creek", 300: "Fanno Creek", 400: "Tryon Creek", 500: "Willamette Mainstem", 600: "Willamette Tribs"}
 vegtype_dict = {1:"Built",2:"Low_Med",3:"High",4:"Water"}

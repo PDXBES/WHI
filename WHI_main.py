@@ -20,11 +20,11 @@ if __name__ == '__main__':
 
     #util.delete_gdb_contents(config.temp_gdb)
 
-    #WHI_modules.treeCanopy()
+    WHI_modules.treeCanopy()
     #WHI_modules.riparianInt()
     #WHI_modules.EIA()
     #WHI_modules.streamConn() # need to integrate culvert exclusions - see list from Jen
-    WHI_modules.floodplainCon()
+    #WHI_modules.floodplainCon()
     #WHI_modules.shallowWaterRef()
     #WHI_modules.streamAccess()
 

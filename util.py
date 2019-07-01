@@ -104,39 +104,39 @@ def tableTo_primaryOutput(input_object):
         full_output_name = os.path.join(config.primary_output, desc.basename)
         arcpy.Copy_management(input_object, full_output_name)
 
-def fishnetChop(comparison_fc):
-    # Chops up the canopy fc using static fishnet, intersects this with the comparison_fc,
-    # then merges results back into one - seems to get around memory issues.
-    # For now uses a fishnet of 3 polygons with city-wide extent.
-    # canopy_combo_vect is a default input, the other is a param (comparison_fc)
-
-    log ("Intersecting DSCs and landcover")
-
-    log("generate list of IDs")
-    IDlist = []
-    with arcpy.da.SearchCursor(config.fishnet, "OID") as cursor:
-        for row in cursor:
-            IDlist.append(row[0])
-
-    # chop up the canopy into 3 pieces to run through the intersect
-    log("subset canopy polygons and run intersect on subsets")
-    fishnet_input = arcpy.MakeFeatureLayer_management(config.fishnet, "in_memory" + r"\fishnet_input")
-    canopy_input = arcpy.MakeFeatureLayer_management(config.canopy_combo_vect, "in_memory" + r"\canopy_input")
-    for ID in IDlist:
-        log("..." + str(ID) + " of 3 intersects")
-        net_sub = arcpy.SelectLayerByAttribute_management(fishnet_input, "NEW_SELECTION", "OID = {0}".format(ID))
-        canopy_sub = arcpy.SelectLayerByLocation_management(canopy_input,"HAVE_THEIR_CENTER_IN", net_sub, "", "NEW_SELECTION")
-        canopy_copy = arcpy.CopyFeatures_management(canopy_sub, config.temp_gdb + r"\canopy_copy{0}".format(ID),"#","0","0","0")
-        in_features = [canopy_copy,comparison_fc]
-        sect_result = arcpy.Intersect_analysis(in_features, config.temp_gdb + r"\sect_result{0}".format(ID),"NO_FID","","INPUT")
-
-    # then merge results
-    log("combine results of intersects")
-    arcpy.env.workspace = config.temp_gdb
-    fcs = arcpy.ListFeatureClasses("sect_result*")
-    sect_result = arcpy.Append_management([fcs[1], fcs[2]], fcs[0],"NO_TEST","","")
-
-    return sect_result
+##def fishnetChop(comparison_fc):
+##    # Chops up the canopy fc using static fishnet, intersects this with the comparison_fc,
+##    # then merges results back into one - seems to get around memory issues.
+##    # For now uses a fishnet of 3 polygons with city-wide extent.
+##    # canopy_combo_vect is a default input, the other is a param (comparison_fc)
+##
+##    log ("Intersecting DSCs and landcover")
+##
+##    log("generate list of IDs")
+##    IDlist = []
+##    with arcpy.da.SearchCursor(config.fishnet, "OID") as cursor:
+##        for row in cursor:
+##            IDlist.append(row[0])
+##
+##    # chop up the canopy into 3 pieces to run through the intersect
+##    log("subset canopy polygons and run intersect on subsets")
+##    fishnet_input = arcpy.MakeFeatureLayer_management(config.fishnet, "in_memory" + r"\fishnet_input")
+##    canopy_input = arcpy.MakeFeatureLayer_management(config.canopy_combo_vect, "in_memory" + r"\canopy_input")
+##    for ID in IDlist:
+##        log("..." + str(ID) + " of 3 intersects")
+##        net_sub = arcpy.SelectLayerByAttribute_management(fishnet_input, "NEW_SELECTION", "OID = {0}".format(ID))
+##        canopy_sub = arcpy.SelectLayerByLocation_management(canopy_input,"HAVE_THEIR_CENTER_IN", net_sub, "", "NEW_SELECTION")
+##        canopy_copy = arcpy.CopyFeatures_management(canopy_sub, config.temp_gdb + r"\canopy_copy{0}".format(ID),"#","0","0","0")
+##        in_features = [canopy_copy,comparison_fc]
+##        sect_result = arcpy.Intersect_analysis(in_features, config.temp_gdb + r"\sect_result{0}".format(ID),"NO_FID","","INPUT")
+##
+##    # then merge results
+##    log("combine results of intersects")
+##    arcpy.env.workspace = config.temp_gdb
+##    fcs = arcpy.ListFeatureClasses("sect_result*")
+##    sect_result = arcpy.Append_management([fcs[1], fcs[2]], fcs[0],"NO_TEST","","")
+##
+##    return sect_result
 
 def delete_gdb_contents(target_gdb):
     msg = "Deleting contents of gdb: " + target_gdb
