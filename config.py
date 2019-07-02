@@ -49,8 +49,8 @@ mst_dscs = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.mst_dsc_bes_pdx"
 streets = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.streets_pdx"
 OSSMA = SWSP + r"\SWSP.GIS.ossma_taxlots"
 
-canopy_combo_vect = primary_input + r"\canopy_combo_vector"
-fishnet = primary_input + r"\fishnet_city"
+# canopy_combo_vect = primary_input + r"\canopy_combo_vector"
+# fishnet = primary_input + r"\fishnet_city"
 
 # other - lists and dictionaries
 vect_archive_list = [subwatersheds,EDT_reaches,ImpA, BES_UIC, BMP_drainage, ecoroof_pnt, privateSMF, streams, floodplain_clip, waterbodies, stream_access_poly, sump_delin]

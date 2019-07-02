@@ -20,15 +20,15 @@ if __name__ == '__main__':
 
     #util.delete_gdb_contents(config.temp_gdb)
 
-    WHI_modules.treeCanopy()
+    #WHI_modules.treeCanopy()
     #WHI_modules.riparianInt()
     #WHI_modules.EIA()
-    #WHI_modules.streamConn() # need to integrate culvert exclusions - see list from Jen
+    #WHI_modules.streamConn()
     #WHI_modules.floodplainCon()
     #WHI_modules.shallowWaterRef()
     #WHI_modules.streamAccess()
 
     #WHI_modules.subwshed_Attach() # attach WHI scores to the subwatershed geometry so that thematic mapping can be produced from results
 
-    #util.archive() # should be run after every full process run to create a date stamped archive of inputs and results
+    util.archive() # should be run after every full process run to create a date stamped archive of inputs and results
 

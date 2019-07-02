@@ -13,6 +13,8 @@
 def max_score_check(input):
     if input > 10:
         return 10
+    else:
+        return input
 
 def EIA_score(input):
     if input > 10:

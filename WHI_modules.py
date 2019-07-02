@@ -79,64 +79,6 @@ def NullNumber_toZero(inputFC):
                     row[0] = 0
                     rows.updateRow(row)
 
-##def createVeg_combo(comparison_fc, output):
-##    # creates a raster combining the 2007 Metro veg and a specified feature class (for WHI use = the subwatersheds)
-##    # converts output to vector
-##    # input 'comparison_fc' = the feature class to be compared - currently assumed to be vector and converted to raster
-##    # function that calls this uses logic so decide whether to use existing version or rerun ...
-##    # most likely don't need to rerun unless new veg source is used OR subwatershed bounds change
-##
-##    # clip landcover to subwatersehds and Reclassify the results (because extra values are added after the clip for some reason (??) )
-##    util.log("Reclassifying landcover raster")
-##    arcpy.CheckOutExtension("Spatial")
-##    # assign questionable, unnecessary values to the main 4 values (built, low veg, high veg, water)
-##    arcpy.env.workspace = config.temp_gdb
-##    reclass_mapping = "0 1;1 1;2 2;3 3;4 4;5 4;6 1;7 1;8 1"
-##    veg_reclass = arcpy.sa.Reclassify(config.canopy,"Value", reclass_mapping,"DATA")
-##
-##    # convert the comparison feature class to raster
-##    util.log("Converting comparison feature class to raster")
-##    arcpy.env.snapRaster = config.canopy
-##    arcpy.env.extent = "MAXOF"
-##    Comparison_raster = arcpy.FeatureToRaster_conversion(comparison_fc,"WATERSHED",config.temp_gdb + r"\wshed_toRast","3")
-##    tempComparison_raster = arcpy.sa.Raster(Comparison_raster)
-##
-##    # combine landcover and comparison rasters
-##    util.log("Combining rasters")
-##    # multiply Comparison raster Value *100 so that the value can be parsed with the vegetation value
-##    # adding rasters results in NoData where there is not a value from BOTH therefore this step also serves to clip the raster to the subwatersheds
-##    combo = veg_reclass + (tempComparison_raster*100)
-##    combo.save(config.temp_gdb + r"\raster_combo")
-##    arcpy.CheckInExtension("Spatial")
-##
-##    util.log("Converting the combo to vector and clipping")
-##    util.log("- converting")
-##    veg_vect = arcpy.RasterToPolygon_conversion(combo, config.canopy_combo_vect)
-##
-##    # convert watershed code (int) to text
-##    # this takes almost an hour to run - why?
-##    util.log("Adding and populating WATERSHED field")
-##    arcpy.AddField_management(veg_vect,"WATERSHED","TEXT",'','',20)
-##    with arcpy.da.UpdateCursor(veg_vect, ["gridcode","WATERSHED"]) as rows:
-##        for row in rows:
-##            if row[0] < 200:
-##                row[1] = config.wshed_dict[100]
-##            elif row[0] > 199 and row[0] < 300:
-##                row[1] = config.wshed_dict[200]
-##            elif row[0] > 299 and row[0] < 400:
-##                row[1] = config.wshed_dict[300]
-##            elif row[0] > 399 and row[0] < 500:
-##                row[1] = config.wshed_dict[400]
-##            elif row[0] > 499 and row[0] < 600:
-##                row[1] = config.wshed_dict[500]
-##            else:
-##                row[1] = config.wshed_dict[600]
-##            rows.updateRow(row)
-##
-##    util.log("Repairing geometry")
-##    arcpy.RepairGeometry_management(veg_vect)
-##    arcpy.RepairGeometry_management(veg_vect)
-
 def sqFoot_calc(input):
     # fills the square footage values for each type of land cover
     # uses fields that get deleted later therefore may be hard to debug (or understand what its doing)
@@ -163,7 +105,7 @@ def EIA():
 
     arcpy.env.overwriteOutput = True
 
-    util.log("Starting EIA module")
+    util.log("Starting EIA module ---------------------------------------------------------------")
 
     #subset inputs
     gs_layer = arcpy.MakeFeatureLayer_management(config.collection_lines,"gs_layer","UNITTYPE = 'CHGRSTFAC'")
@@ -320,11 +262,11 @@ def EIA():
                     row[1] = calc.EIA_score(row[0])
             rows.updateRow(row)
 
-    util.log("Cleaning up")
-    arcpy.Delete_management("in_memory")
-
     # convert output to table
     util.tableTo_primaryOutput(EIA_final)
+
+    util.log("Cleaning up")
+    arcpy.Delete_management("in_memory")
 
     util.log("Module complete ---------------------------------------------------------------")
 
@@ -335,7 +277,7 @@ def streamConn():
     # compare total stream lengths to previous years total lengths - see #1.b in documentation
     # contact watershed group managers to update natural bottom culvert list - see #3 in documentation
 
-    util.log("Starting streamConn module")
+    util.log("Starting streamConn module ---------------------------------------------------------------")
 
     # subset streams to piped only
     streams_sub = arcpy.MakeFeatureLayer_management(config.streams,"streams_sub","LINE_TYPE in ('Stormwater Pipe','Stormwater Culvert','Combined Stormwater/Sewer Pipe')")
@@ -362,47 +304,61 @@ def streamConn():
     # append full set stream length to subset
     arcpy.JoinField_management(piped_byWshed,"WATERSHED",fulltemp,"WATERSHED","Full_Length")
 
-    # IF WE NEED TO ADJUST FOR NATURAL BOTTOM CULVERTS HERE IS WHERE IT WOULD HAPPEN - see #3 in documentation
-    # JEN to create polygons which tells us where the natural bottom culverts are
+    util.log("Accounting for retrofitted pipes")
+    # add and populate field "Piped_minus_Retrofitted"
+    arcpy.AddField_management(piped_byWshed, "Piped_minus_Retrofitted", "DOUBLE")
+
+    # get values for reduction of length piped from xls
+    retrofitted_dict = util.get_wshed_vals_from_xls(config.culvert_retrofit)
+
+    with arcpy.da.UpdateCursor(piped_byWshed, ["WATERSHED", "SUM_Shape_Length", "Piped_minus_Retrofitted"]) as cursor:
+        for row in cursor:
+            row[2] = row[1] - retrofitted_dict[row[0]]
+            cursor.updateRow(row)
 
     # create and populate % piped field
     util.log("Adding/ calculating Pcnt piped/ subwatershed")
     arcpy.AddField_management(piped_byWshed, "Pcnt_piped", "DOUBLE")
-    with arcpy.da.UpdateCursor(piped_byWshed, ["Pcnt_piped", "SUM_Shape_Length","Full_Length"]) as rows:
-        for row in rows:
+    with arcpy.da.UpdateCursor(piped_byWshed, ["Pcnt_piped", "Piped_minus_Retrofitted","Full_Length"]) as cursor:
+        for row in cursor:
             row[0] = (row[1]/row[2])*100
-            rows.updateRow(row)
+            cursor.updateRow(row)
 
     # convert values in Pcnt piped field to WHI codes (new field)
     util.log("Adding/ calculating WHI scores")
     arcpy.AddField_management(piped_byWshed, "streamConn_score", "DOUBLE")
-    with arcpy.da.UpdateCursor(piped_byWshed, ["Pcnt_piped", "streamConn_score"]) as rows:
-        for row in rows:
+    with arcpy.da.UpdateCursor(piped_byWshed, ["Pcnt_piped", "streamConn_score"]) as cursor:
+        for row in cursor:
             row[1] = calc.streamCon_score(row[0])
-            rows.updateRow(row)
+            cursor.updateRow(row)
 
     util.tableTo_primaryOutput(piped_byWshed)
+
+    util.log("Cleaning up")
+    arcpy.Delete_management("in_memory")
+
     util.log("Module complete ---------------------------------------------------------------")
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 def treeCanopy():
-    util.log("Starting treeCanopy module")
+    util.log("Starting treeCanopy module ---------------------------------------------------------------")
 
     # per Chris P - remove pieces about DSCs/zoning as they were speculative and don't get used
     # replace 2007 veg with 2014 as we only need total canopy NOT broken out further by type
     # no longer need to use fishnetChop or createVegCombo
 
+    util.log("Running zonal stats on canopy")
     arcpy.CheckOutExtension("Spatial")
-    treeCanopy_final = arcpy.gp.ZonalStatisticsAsTable_sa(config.subwatersheds,"WATERSHED", config.canopy_2014, config.temp_gdb + r"\canopy_stats", "DATA", "SUM")
+    treeCanopy_final = arcpy.gp.ZonalStatisticsAsTable_sa(config.subwatersheds,"WATERSHED", config.canopy_2014, config.temp_gdb + r"\treeCanopy_final", "DATA", "SUM")
     arcpy.CheckInExtension("Spatial")
     # note - result field is AREA
     # compare AREA to subwatersheds Shape_Area
     arcpy.JoinField_management(treeCanopy_final,"WATERSHED",config.subwatersheds,"WATERSHED","Shape_Area")
 
     # Calculate % canopy per subwatershed
-    util.log("Calc % canopy")
+    util.log("Calculating % canopy")
     rate_field = "Pcnt_canopy"
     arcpy.AddField_management(treeCanopy_final, rate_field, "Double")
     with arcpy.da.UpdateCursor(treeCanopy_final, [rate_field, "AREA", "Shape_Area"]) as cursor:
@@ -410,13 +366,16 @@ def treeCanopy():
             row[0] = (row[1]/row[2]) * 100
             cursor.updateRow(row)
 
-    util.log("Calc WHI score")
+    util.log("Calculating WHI score")
     score_field = "treeCanopy_score"
     arcpy.AddField_management(treeCanopy_final, score_field, "DOUBLE")
     with arcpy.da.UpdateCursor(treeCanopy_final, [rate_field, score_field]) as cursor:
         for row in cursor:
             row[1] = calc.canopy_scores(row[0])
             cursor.updateRow(row)
+
+    # convert output to table if needed
+    util.tableTo_primaryOutput(treeCanopy_final)
 
     util.log("Cleaning up")
     arcpy.Delete_management("in_memory")
@@ -429,7 +388,7 @@ def floodplainCon():
     # this module is dependent on the combined 100 year and 1996 floodplain to create config.floodplain_clip
     # if either of these sources were to change then the config.floodplain_clip source would need to be updated
 
-    util.log("Starting floodplainConn module")
+    util.log("Starting floodplainConn module ---------------------------------------------------------------")
 
     util.log("Clip impervious area to floodplain")
     ImpA_floodplain_clip = arcpy.Clip_analysis(config.ImpA, config.floodplain_clip, config.temp_gdb + r"\ImpA_floodplain_clip")
@@ -479,18 +438,18 @@ def floodplainCon():
             row[1] = calc.fpCon_score(row[0])
             rows.updateRow(row)
 
-    util.log("Cleaning up")
-    arcpy.Delete_management("in_memory")
-
     # convert output to table if needed
     util.tableTo_primaryOutput(floodplainConn_final)
+
+    util.log("Cleaning up")
+    arcpy.Delete_management("in_memory")
 
     util.log("Module complete ---------------------------------------------------------------")
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 def shallowWaterRef():
-    util.log("Starting shallowWaterRef module")
+    util.log("Starting shallowWaterRef module ---------------------------------------------------------------")
 
     #dissolve EDT reaches into 1 polygon
     reach_diss = arcpy.Dissolve_management(config.EDT_reaches,r"in_memory" + r"\reach_diss","#","#","MULTI_PART","DISSOLVE_LINES")
@@ -549,11 +508,11 @@ def shallowWaterRef():
             row[1] = calc.shallowWater_score(row[0])
             rows.updateRow(row)
 
-    util.log("Cleaning up")
-    arcpy.Delete_management("in_memory")
-
     # convert output to table if needed
     util.tableTo_primaryOutput(ShallowWater_final)
+
+    util.log("Cleaning up")
+    arcpy.Delete_management("in_memory")
 
     util.log("Module complete ---------------------------------------------------------------")
 
@@ -561,7 +520,7 @@ def shallowWaterRef():
 
 def streamAccess():
 
-    util.log("Starting streamAccess module")
+    util.log("Starting streamAccess module ---------------------------------------------------------------")
 
     # clip access polygons to subwatersheds
     util.log("Clipping access polygons to subwatersheds")
@@ -662,11 +621,11 @@ def streamAccess():
             row[2] = calc.streamAccess2_count(row[0], row[1])
             rows.updateRow(row)
 
-    util.log("Cleaning up")
-    arcpy.Delete_management("in_memory")
-
     # convert output to table if needed
     util.tableTo_primaryOutput(access_final)
+
+    util.log("Cleaning up")
+    arcpy.Delete_management("in_memory")
 
     util.log("Module complete ---------------------------------------------------------------")
 
@@ -674,7 +633,7 @@ def streamAccess():
 
 def riparianInt():
     # Find landcover breakdown for riparian buffer - sqft per subwatershed
-    util.log("Starting riparianInt module")
+    util.log("Starting riparianInt module ---------------------------------------------------------------")
 
     streams = config.streams
     waterbodies = config.waterbodies
@@ -786,11 +745,11 @@ def riparianInt():
             row[2] = calc.ripIntegrity_score(row[0], row[1])
             rows.updateRow(row)
 
-    util.log("Cleaning up")
-    arcpy.Delete_management("in_memory")
-
     # convert output to table if needed
     util.tableTo_primaryOutput(stream_sumBy)
+
+    util.log("Cleaning up")
+    arcpy.Delete_management("in_memory")
 
     util.log("Module complete ---------------------------------------------------------------")
 
@@ -798,7 +757,7 @@ def riparianInt():
 
 def subwshed_Attach():
     # attach WHI figs to subwatershed geometry
-    util.log("Starting subwshed_Attach module")
+    util.log("Starting subwshed_Attach module ---------------------------------------------------------------")
 
     util.log("Copying subwatersheds to output gdb")
     final_subwsheds = config.primary_output + r"\WHI_subwsheds"
