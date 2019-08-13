@@ -12,6 +12,9 @@ import arcpy, os, datetime, config, xlrd
 
 
 def archive():
+
+    # DCA - this should really be broken out into inputs vs outputs folders so its not all lumped together
+
     log("Archiving WHI inputs and outputs")
 
     # create new geodatabse
@@ -32,13 +35,14 @@ def archive():
         else:
             return str(fc) + " not found"
 
-    # raster sources
-    for fc in config.rast_archive_list:
-        if arcy.Exists(fc) == True:
-            log("......rasters")
-            arcpy.RasterToGeodatabase_conversion(config.rast_archive_list, full_path)
-        else:
-            return str(fc) + " not found"
+# exclude these for now - they are going to be pretty static and take forever to copy
+##    # raster sources
+##    for fc in config.rast_archive_list:
+##        if arcpy.Exists(fc) == True:
+##            log("......rasters")
+##            arcpy.RasterToGeodatabase_conversion(config.rast_archive_list, full_path)
+##        else:
+##            return str(fc) + " not found"
 
     # copy output files into geodatabase
     log("...archiving outputs")

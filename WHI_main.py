@@ -31,4 +31,5 @@ if __name__ == '__main__':
     #WHI_modules.subwshed_Attach() # attach WHI scores to the subwatershed geometry so that thematic mapping can be produced from results
 
     util.archive() # should be run after every full process run to create a date stamped archive of inputs and results
+                    # double check that this runs all the way through
 
