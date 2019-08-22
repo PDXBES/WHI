@@ -30,6 +30,7 @@ city_bound = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.portland_pdx"
 floodplain_clip = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Floodplain\Floodplain_clip.shp"
 stream_access_poly = r"\\besfile1\StormWaterProgram\Data\GIS\Data\Stream_Access\Stream_Accessibility_2019_06.shp"
 subwatersheds = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Watersheds with Willamette Mainstem and Tribs\Portland_Watersheds_Willamette_Tribs_and_Mainstem.shp"
+subwatersheds_StreamAccess_alt = r"\\besfile1\grp104\SID\20-Monitoring\WSHIndex\Data\Shapefiles\Watersheds with Willamette Mainstem and Tribs\portland_watersheds_streamAccess_alt.shp"
 culvert_retrofit = r"\\besfile1\GRP104\SID\20-Monitoring\WSHIndex\PercentPiped\Retrofitted Culverts data.xlsx"
 BMP_drainage = r"\\besfile1\Modeling\GridMaster\BMP\PRF\ARC\Working\Drainage_Delineation\DelineationFinal_results.gdb\Delineation_04_2015"
 sump_delin = r'\\besfile1\StormWaterProgram\System_Plan\Risk_Assessment\ARC\ReviewDataSources\Task6_working.gdb\PublicSumpBasins'
@@ -47,10 +48,8 @@ river_depth = egh_raster + r"\EGH_Raster.ARCMAP_ADMIN.river_depths_ohw_pdx"
 waterbodies = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.waterbodies_pdx"
 mst_dscs = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.mst_dsc_bes_pdx"
 streets = egh_public + r"\EGH_PUBLIC.ARCMAP_ADMIN.streets_pdx"
-OSSMA = SWSP + r"\SWSP.GIS.ossma_taxlots"
+#OSSMA = SWSP + r"\SWSP.GIS.ossma_taxlots"
 
-# canopy_combo_vect = primary_input + r"\canopy_combo_vector"
-# fishnet = primary_input + r"\fishnet_city"
 
 # other - lists and dictionaries
 vect_archive_list = [subwatersheds,EDT_reaches,ImpA, BES_UIC, BMP_drainage, ecoroof_pnt, privateSMF, streams, floodplain_clip, waterbodies, stream_access_poly, sump_delin]

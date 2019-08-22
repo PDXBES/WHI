@@ -154,6 +154,7 @@ def EIA():
     rename_fields(gs_output,gs_output_new , old_new)
 
     util.log("... BMP managed ImpA piece")
+    # TODO: update BMP inventory and associated drainage areas (DCA - 20190822)
     # clip delineations to the mapped impervious area (which is already clipped to the city boundary)
     util.log("clipping BMP basins to ImpA bounds")
     BMP_ImpAclip = arcpy.Clip_analysis(ponds_swales,ImpA_cityclip, "in_memory" + r"\BMP_ImpAclip")
@@ -197,26 +198,34 @@ def EIA():
     rename_fields(roof_output , roof_output_new , old_new)
 
     util.log("... private SMF piece")
-    # intersect OSSMA and ImpA
-    ossma_impa_sect = arcpy.Intersect_analysis([config.OSSMA , config.ImpA],config.temp_gdb + r"\ossma_impa_sect","NO_FID","#","INPUT")
-    # add and calc field: reduced_ImpA = OSSMA.final_red * ShapeArea
-    arcpy.AddField_management(ossma_impa_sect, "reduced_ImpA", "DOUBLE")
-    with arcpy.da.UpdateCursor(ossma_impa_sect, ["Final_Red", "Shape_Area", "reduced_ImpA"]) as cursor:
-        for row in cursor:
-            if row[0] != None:
-                row[2] = row[1] - (row[0]/100)*row[1] # reduce impA if there is a final reduction value
-            else:
-                row[2] = row[1] # if no final reduction value then use original impA
-            cursor.updateRow(row)
-    # run sumBy to sum reduced_ImpA area to the watershed
-    util.log("Summing watershed area values")
+
+    # pulls sqft value from dictionary and assigns based on facility type
+    smf_field = "assumed_value"
+    arcpy.AddField_management(private_SMF, smf_field, "DOUBLE")
+    keylist = []
+    for key, value in config.smf_dict.iteritems():
+        keylist.append(key)
+    with arcpy.da.UpdateCursor(private_SMF, ["Code", smf_field]) as rows:
+        for row in rows:
+            if str(row[0]).strip() in keylist:
+               row[1] = config.smf_dict[str(row[0]).strip()]
+               rows.updateRow(row)
+
+    # remove records where the Code field did not match a key from config.smf_dict ie excludes any types we don't include in the dict
+    util.log("Cleaning up Code field")
+    with arcpy.da.UpdateCursor(private_SMF,smf_field) as rows:
+        for row in rows:
+            if row[0] is None:
+                rows.deleteRow()
+
+    util.log("Renaming fields")
+    # rename sum field and set result fc = to EIA_final - all other values will be appended to this fc
     smf_output = config.temp_gdb + r"\smf_diss"
     groupby_list = ["WATERSHED"]
-    sum_field = "reduced_ImpA SUM"
-    sumBy_select(ossma_impa_sect, config.subwatersheds, groupby_list, sum_field, smf_output)
-    # rename sum field and set result fc = to EIA_final - all other values will be appended to this fc
-    util.log("Renaming fields")
-    SMF_old = "SUM_reduced_ImpA"
+    sum_field = "assumed_value SUM"
+    sumBy_intersect(private_SMF,config.subwatersheds,groupby_list,sum_field,smf_output)
+
+    SMF_old = "SUM_assumed_value"
     SMF_new = 'SMF_Area'
     old_new = {SMF_old : SMF_new}
     EIA_final = config.temp_gdb + r"\EIA_final"
@@ -229,7 +238,7 @@ def EIA():
     rename_fields(config.subwatersheds, new_subwsheds ,old_new)
 
     # combine area fields into one location for calculation
-    util.log("Adding area fields to the private SMF output")
+    util.log("Adding area fields to the private SMF output (ie the final output because it becomes that)")
     join_field = "WATERSHED"
     arcpy.JoinField_management(EIA_final,join_field,gs_output_new,join_field,greenstreet_new)
     arcpy.JoinField_management(EIA_final,join_field,BMP_output_new,join_field,BMP_new)
@@ -417,7 +426,7 @@ def floodplainCon():
     floodplainConn_final = config.temp_gdb + r"\floodplainConn_final"
     rename_fields(floodplainConn_sumBy, floodplainConn_final ,old_new)
 
-    # append floodplain area from floodplain_sumBy to floodplainConn_final  *********
+    # append floodplain area from floodplain_sumBy to floodplainConn_final (Total floodplain area vs floodplain impervious area) *********
     arcpy.JoinField_management(floodplainConn_final, "WATERSHED", floodplain_sumBy_rename, "WATERSHED", ["Total_Floodplain_Area"])
 
     util.log("Calc % impervious of the floodplain")
@@ -521,16 +530,19 @@ def shallowWaterRef():
 def streamAccess():
 
     util.log("Starting streamAccess module ---------------------------------------------------------------")
+    # note - module uses an altered version of the subwatershed geometry per Jen Antak
+    # - this allows for capturing the full length of the stream whereas the confluences were being cut off previously
 
     # clip access polygons to subwatersheds
     util.log("Clipping access polygons to subwatersheds")
-    accesspoly_clip = arcpy.Clip_analysis(config.stream_access_poly, config.subwatersheds, config.temp_gdb + r"\accesspoly_clip")
+    accesspoly_clip = arcpy.Clip_analysis(config.stream_access_poly, config.subwatersheds_StreamAccess_alt, config.temp_gdb + r"\accesspoly_clip")
 
     # intersect city streams with subwatersheds
     util.log("Intersecting streams with subwatersheds")
-    in_features = [config.streams,config.subwatersheds]
+    in_features = [config.streams,config.subwatersheds_StreamAccess_alt]
     streams_sect = arcpy.Intersect_analysis(in_features, config.temp_gdb + r"\streams_sect","NO_FID")
 
+    # TODO: redundancy in this area here - stream_sect and accesspoly_sect are the same thing
     #intersect city streams with accessiblity polygons
     util.log("Intersecting city streams with accessibility polygons")
     in_features = [streams_sect, accesspoly_clip]
@@ -538,7 +550,7 @@ def streamAccess():
 
     # intersect accessible streams with subwatersheds
     util.log("Intersecting stream accessibility with subwatersheds")
-    in_features = [accesspoly_sect, config.subwatersheds]
+    in_features = [accesspoly_sect, config.subwatersheds_StreamAccess_alt]
     access_sect = arcpy.Intersect_analysis(in_features,config.temp_gdb + r"\access_sect","NO_FID")
 
     # add field to define access values which more explicitly align with output
