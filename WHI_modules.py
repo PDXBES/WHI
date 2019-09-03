@@ -303,7 +303,9 @@ def streamConn():
     groupby_list = ["WATERSHED"]
     sum_field = "Shape_Length SUM"
     fullpipe = "in_memory" + r"\fullpiped_byWshed"
-    sumBy_intersect(config.streams, config.subwatersheds,groupby_list, sum_field, fullpipe)
+    # remove Routing Connections
+    streams_noRC = arcpy.MakeFeatureLayer_management(config.streams,"streams_sub","LINE_TYPE <> 'Routing Connection'")
+    sumBy_intersect(streams_noRC, config.subwatersheds,groupby_list, sum_field, fullpipe)
     old = "SUM_Shape_Length"
     new = 'Full_Length'
     old_new = {old : new}
