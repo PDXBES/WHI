@@ -396,49 +396,40 @@ def treeCanopy():
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 def floodplainCon():
+    # Generates % canopy within the floodplain (combined 100/'96) per subwatershed
     # this module is dependent on the combined 100 year and 1996 floodplain to create config.floodplain_clip
     # if either of these sources were to change then the config.floodplain_clip source would need to be updated
 
     util.log("Starting floodplainConn module ---------------------------------------------------------------")
 
-    util.log("Clip impervious area to floodplain")
-    ImpA_floodplain_clip = arcpy.Clip_analysis(config.ImpA, config.floodplain_clip, config.temp_gdb + r"\ImpA_floodplain_clip")
+    util.log("Remove water areas from subwatersheds") # Water is NOT included in final calculation
+    subwshed_water_erase = arcpy.Erase_analysis(config.subwatersheds, config.waterbodies, config.temp_gdb + r"\subwshed_water_erase")
 
-    util.log("Find area of floodplain per watershed")
-    floodplain_sumBy = config.temp_gdb + r"\floodplain_sumBy"
-    groupby_list = ["WATERSHED"]
-    sum_field = "Shape_Area SUM"
-    sumBy_intersect(config.floodplain_clip, config.subwatersheds, groupby_list, sum_field, floodplain_sumBy)
-    # rename "SUM_Shape_Area" to "Total_Floodplain_Area"
-    old_name = "SUM_Shape_Area"
-    new_name = "Total_Floodplain_Area"
-    old_new = {old_name : new_name}
-    floodplain_sumBy_rename = config.temp_gdb + r"\floodplain_sumBy_rename"
-    rename_fields(floodplain_sumBy, floodplain_sumBy_rename ,old_new)
+    util.log("Clip subwatersheds to floodplain areas")
+    subwshed_floodplain_clip = arcpy.Clip_analysis(subwshed_water_erase, config.floodplain_clip, config.temp_gdb + r"\subwshed_floodplain_clip")
 
-    util.log("Find area of floodplain impervious per watershed")
-    floodplainConn_sumBy = config.temp_gdb + r"\floodplainConn_sumBy"
-    groupby_list = ["WATERSHED"]
-    sum_field = "Shape_Area SUM"
-    sumBy_intersect(ImpA_floodplain_clip, config.subwatersheds, groupby_list, sum_field, floodplainConn_sumBy)
-    # rename "SUM_Shape_Area" to "Floodplain_Impervious_Area"
-    old_name = "SUM_Shape_Area"
-    new_name = "Floodplain_Impervious_Area"
-    old_new = {old_name : new_name}
-    floodplainConn_final = config.temp_gdb + r"\floodplainConn_final"
-    rename_fields(floodplainConn_sumBy, floodplainConn_final ,old_new)
+    util.log("Running zonal stats on canopy")
+    arcpy.CheckOutExtension("Spatial")
+    floodplainConn_final = arcpy.gp.ZonalStatisticsAsTable_sa(subwshed_floodplain_clip,
+                                                                "WATERSHED",
+                                                                config.canopy_2014,
+                                                                config.temp_gdb + r"\canopy_zonal_stats",
+                                                                "DATA",
+                                                                "SUM")
+    arcpy.CheckInExtension("Spatial")
 
-    # append floodplain area from floodplain_sumBy to floodplainConn_final (Total floodplain area vs floodplain impervious area) *********
-    arcpy.JoinField_management(floodplainConn_final, "WATERSHED", floodplain_sumBy_rename, "WATERSHED", ["Total_Floodplain_Area"])
+    util.log("Attach floodplain subwatershed areas to canopy zonal table")
+    arcpy.JoinField_management(floodplainConn_final,"WATERSHED",subwshed_floodplain_clip,"WATERSHED","Shape_Area")
 
-    util.log("Calc % impervious of the floodplain")
-    rate_field = "Pcnt_ImpA"
-    arcpy.AddField_management(floodplainConn_final, rate_field, "Double")
-    cursor_fields = ["Floodplain_Impervious_Area", "Total_Floodplain_Area", rate_field]
-    with arcpy.da.UpdateCursor(floodplainConn_final, cursor_fields) as cursor:
-        for row in cursor:
-            row[2] = (row[0]/row[1])*100
-            cursor.updateRow(row)
+    # % veg = sqft canopy / subwatershed floodplain area
+    util.log("Calc % vegetation")
+    rate_field = "Pcnt_canopy"
+    arcpy.AddField_management(floodplainConn_final,rate_field,"Double")
+    cursor_fields = ["AREA", "Shape_Area",rate_field] # AREA = canopy square footage/subwshed, Shape_Area = total subwshed area
+    with arcpy.da.UpdateCursor(floodplainConn_final,cursor_fields) as rows:
+                for row in rows:
+                    row[2] = (row[0]/row[1])*100
+                    rows.updateRow(row)
 
     util.log("Calc WHI score")
     score_field = "floodplainConn_score"

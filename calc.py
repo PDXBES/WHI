@@ -37,11 +37,11 @@ def canopy_scores(input):
     output = 0.2195* input
     return output
 
-def fpCon_score(input): # Chris P may want to use a simplified equation at some point
-    if input > 80:
+def fpCon_score(input):
+    if input < 20:
         output = 0
     else:
-        output = -0.000009*((100 - input)**3) + 0.00206*((100 - input)**2) - 0.0092*(100 - input) - 0.57
+        output = -0.000009*(input**3)+0.00206*(input**2)-0.0092*(input)-0.57
     return output
 
 def shallowWater_score(input):
