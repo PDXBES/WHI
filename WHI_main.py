@@ -22,9 +22,9 @@ if __name__ == '__main__':
 
     #WHI_modules.treeCanopy()
     #WHI_modules.riparianInt()
-    WHI_modules.EIA()
+    #WHI_modules.EIA()
     #WHI_modules.streamConn()
-    #WHI_modules.floodplainCon()
+    WHI_modules.floodplainCon()
     #WHI_modules.shallowWaterRef()
     #WHI_modules.streamAccess()
 

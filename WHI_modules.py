@@ -402,30 +402,30 @@ def floodplainCon():
 
     util.log("Starting floodplainConn module ---------------------------------------------------------------")
 
-    util.log("Remove water areas from subwatersheds") # Water is NOT included in final calculation
+    util.log("Removing water areas from subwatersheds") # Water is NOT included in final calculation
     subwshed_water_erase = arcpy.Erase_analysis(config.subwatersheds, config.waterbodies, config.temp_gdb + r"\subwshed_water_erase")
 
-    util.log("Clip subwatersheds to floodplain areas")
+    util.log("Clipping subwatersheds to floodplain areas")
     subwshed_floodplain_clip = arcpy.Clip_analysis(subwshed_water_erase, config.floodplain_clip, config.temp_gdb + r"\subwshed_floodplain_clip")
 
-    util.log("Running zonal stats on canopy")
+    util.log("Running zonal stats on canopy against subwatershed floodplain areas")
     arcpy.CheckOutExtension("Spatial")
     floodplainConn_final = arcpy.gp.ZonalStatisticsAsTable_sa(subwshed_floodplain_clip,
                                                                 "WATERSHED",
                                                                 config.canopy_2014,
-                                                                config.temp_gdb + r"\canopy_zonal_stats",
+                                                                config.temp_gdb + r"\floodplainConn_final",
                                                                 "DATA",
                                                                 "SUM")
     arcpy.CheckInExtension("Spatial")
 
-    util.log("Attach floodplain subwatershed areas to canopy zonal table")
+    util.log("Attaching floodplain subwatershed areas to canopy zonal table")
     arcpy.JoinField_management(floodplainConn_final,"WATERSHED",subwshed_floodplain_clip,"WATERSHED","Shape_Area")
 
-    # % veg = sqft canopy / subwatershed floodplain area
+    # % veg = sqft floodplain canopy / total subwatershed floodplain area
     util.log("Calc % vegetation")
     rate_field = "Pcnt_canopy"
     arcpy.AddField_management(floodplainConn_final,rate_field,"Double")
-    cursor_fields = ["AREA", "Shape_Area",rate_field] # AREA = canopy square footage/subwshed, Shape_Area = total subwshed area
+    cursor_fields = ["AREA", "Shape_Area",rate_field] # AREA = floodplain canopy square footage/subwshed, Shape_Area = total floodplain/ subwshed area
     with arcpy.da.UpdateCursor(floodplainConn_final,cursor_fields) as rows:
                 for row in rows:
                     row[2] = (row[0]/row[1])*100
